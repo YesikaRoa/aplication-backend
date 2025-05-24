@@ -14,6 +14,7 @@ export const authenticateToken = (req, res, next) => {
     }
 
     req.user = user // Información del usuario decodificada
+
     next()
   })
 }
