@@ -6,7 +6,17 @@ import jwt from 'jsonwebtoken'
 
 const registerUser = async (req, res, next) => {
   try {
-    const { email, password, ...otherDetails } = req.body
+    const {
+      email,
+      password,
+      professional_type_id,
+      biography,
+      years_of_experience,
+      specialty_ids,
+      ...userDetails
+    } = req.body
+
+    // Validar existencia del email
     try {
       await validateEmailExists(email)
       return res.status(400).json({ message: 'User already exists' })
@@ -17,10 +27,26 @@ const registerUser = async (req, res, next) => {
     // Hashear la contraseña
     const hashedPassword = await hashPassword(password)
 
-    // Crear nuevo usuario
-    const newUser = await UserModel.createUser({ email, password: hashedPassword, ...otherDetails })
+    // Crear usuario
+    const newUser = await UserModel.createUser({ email, password: hashedPassword, ...userDetails })
 
-    return res.status(201).json({ message: 'Usuario creado con éxito' })
+    // Crear profesional
+    const newProfessional = await UserModel.createProfessional({
+      user_id: newUser.id,
+      professional_type_id,
+      biography,
+      years_of_experience,
+    })
+
+    // Asignar especialidades
+    if (specialty_ids && specialty_ids.length > 0) {
+      await UserModel.createProfessionalSpecialty({
+        professional_id: newProfessional.id,
+        specialty_ids,
+      })
+    }
+
+    return res.status(201).json({ message: 'Usuario registrado con éxito' })
   } catch (error) {
     next(error)
   }

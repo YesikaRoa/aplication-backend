@@ -16,6 +16,10 @@ export const registerUserSchema = z.object({
   gender: z.enum(['F', 'M'], 'Gender must be either F or M'),
   role_id: z.number(),
   status: z.enum(['Active', 'Inactive']),
+  professional_type_id: z.number(),
+  biography: z.string().optional(),
+  years_of_experience: z.number().min(0, 'Years of experience must be a positive number'),
+  specialty_ids: z.array(z.number()).optional(),
 })
 
 export const loginUserSchema = z.object({
