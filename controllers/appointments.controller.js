@@ -1,0 +1,124 @@
+import { AppointmentsModel } from '../models/appointments.model.js'
+import { validateId } from '../utils/validations/validationId.js'
+const createAppointment = async (req, res, next) => {
+  try {
+    const newAppointment = await AppointmentsModel.createAppointment(req.body)
+    res.status(201).json({ message: 'Cita creada con éxito', appointment: newAppointment })
+  } catch (error) {
+    next(error)
+  }
+}
+
+const getAllAppointments = async (req, res, next) => {
+  try {
+    const appointments = await AppointmentsModel.getAllAppointments()
+    res.status(200).json(appointments)
+  } catch (error) {
+    next(error)
+  }
+}
+
+const getAppointmentById = async (req, res, next) => {
+  try {
+    const { id } = req.params
+
+    // Validar ID
+    const validation = validateId(id)
+    if (!validation.valid) {
+      return res.status(400).json({ message: validation.message })
+    }
+
+    const appointment = await AppointmentsModel.getAppointmentById(id)
+    if (!appointment) {
+      return res.status(404).json({ message: 'Cita no encontrada' })
+    }
+
+    res.status(200).json(appointment)
+  } catch (error) {
+    next(error)
+  }
+}
+
+const updateAppointment = async (req, res, next) => {
+  try {
+    const { id } = req.params
+
+    // Validar ID
+    const validation = validateId(id)
+    if (!validation.valid) {
+      return res.status(400).json({ message: validation.message })
+    }
+
+    const updates = req.body
+    const updatedAppointment = await AppointmentsModel.updateAppointment(id, updates)
+    if (!updatedAppointment) {
+      return res.status(404).json({ message: 'Cita no encontrada' })
+    }
+
+    res.status(200).json({
+      message: 'Cita actualizada con éxito',
+      appointment: updatedAppointment,
+    })
+  } catch (error) {
+    next(error)
+  }
+}
+
+const deleteAppointment = async (req, res, next) => {
+  try {
+    const { id } = req.params
+
+    // Validar ID
+    const validation = validateId(id)
+    if (!validation.valid) {
+      return res.status(400).json({ message: validation.message })
+    }
+
+    const deleted = await AppointmentsModel.deleteAppointment(id)
+    if (!deleted) {
+      return res.status(404).json({ message: 'Cita no encontrada' })
+    }
+
+    res.status(200).json({ message: 'Cita eliminada con éxito' })
+  } catch (error) {
+    next(error)
+  }
+}
+
+const changeStatus = async (req, res, next) => {
+  const validStatuses = ['pending', 'confirmed', 'completed', 'canceled']
+  try {
+    const { id } = req.params
+    const { status } = req.body
+
+    const validation = validateId(id)
+    if (!validation.valid) {
+      return res.status(400).json({ message: validation.message })
+    }
+
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ message: 'Estado no válido' })
+    }
+
+    const updatedAppointment = await AppointmentsModel.updateAppointment(id, { status })
+    if (!updatedAppointment) {
+      return res.status(404).json({ message: 'Cita no encontrada' })
+    }
+
+    res.status(200).json({
+      message: 'Estado de la cita actualizado con éxito',
+      appointment: updatedAppointment,
+    })
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const AppointmentsController = {
+  createAppointment,
+  getAllAppointments,
+  getAppointmentById,
+  updateAppointment,
+  deleteAppointment,
+  changeStatus,
+}
