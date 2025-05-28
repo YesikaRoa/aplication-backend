@@ -55,13 +55,19 @@ const getUserById = async (id) => {
 
 // Actualizar usuario
 const updateUser = async (id, updates) => {
+  if (!Object.keys(updates).length) {
+    throw new Error('No updates provided')
+  }
+
   const fields = Object.keys(updates)
     .map((key, index) => `${key} = $${index + 2}`)
     .join(', ')
+
   const query = {
     text: `UPDATE users SET ${fields} WHERE id = $1 RETURNING *`,
     values: [id, ...Object.values(updates)],
   }
+
   const { rows } = await db.query(query)
   return rows[0]
 }
@@ -86,16 +92,6 @@ const changePassword = async (id, newPassword) => {
   return rows[0]
 }
 
-// Cambiar estado
-const changeStatus = async (id, newStatus) => {
-  const query = {
-    text: `UPDATE users SET status = $2 WHERE id = $1 RETURNING id, status`,
-    values: [id, newStatus],
-  }
-  const { rows } = await db.query(query)
-  return rows[0]
-}
-
 export const UserModel = {
   createUser,
   getAllUsers,
@@ -103,5 +99,4 @@ export const UserModel = {
   updateUser,
   deleteUser,
   changePassword,
-  changeStatus,
 }
