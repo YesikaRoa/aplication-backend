@@ -1,5 +1,5 @@
 import { AppointmentsModel } from '../models/appointments.model.js'
-import { validateId } from '../utils/validations/validationId.js'
+
 const createAppointment = async (req, res, next) => {
   try {
     const newAppointment = await AppointmentsModel.createAppointment(req.body)
@@ -21,14 +21,8 @@ const getAllAppointments = async (req, res, next) => {
 const getAppointmentById = async (req, res, next) => {
   try {
     const { id } = req.params
-
-    // Validar ID
-    const validation = validateId(id)
-    if (!validation.valid) {
-      return res.status(400).json({ message: validation.message })
-    }
-
     const appointment = await AppointmentsModel.getAppointmentById(id)
+
     if (!appointment) {
       return res.status(404).json({ message: 'Cita no encontrada' })
     }
@@ -42,15 +36,9 @@ const getAppointmentById = async (req, res, next) => {
 const updateAppointment = async (req, res, next) => {
   try {
     const { id } = req.params
-
-    // Validar ID
-    const validation = validateId(id)
-    if (!validation.valid) {
-      return res.status(400).json({ message: validation.message })
-    }
-
     const updates = req.body
     const updatedAppointment = await AppointmentsModel.updateAppointment(id, updates)
+
     if (!updatedAppointment) {
       return res.status(404).json({ message: 'Cita no encontrada' })
     }
@@ -67,14 +55,8 @@ const updateAppointment = async (req, res, next) => {
 const deleteAppointment = async (req, res, next) => {
   try {
     const { id } = req.params
-
-    // Validar ID
-    const validation = validateId(id)
-    if (!validation.valid) {
-      return res.status(400).json({ message: validation.message })
-    }
-
     const deleted = await AppointmentsModel.deleteAppointment(id)
+
     if (!deleted) {
       return res.status(404).json({ message: 'Cita no encontrada' })
     }
@@ -90,11 +72,6 @@ const changeStatus = async (req, res, next) => {
   try {
     const { id } = req.params
     const { status } = req.body
-
-    const validation = validateId(id)
-    if (!validation.valid) {
-      return res.status(400).json({ message: validation.message })
-    }
 
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ message: 'Estado no válido' })

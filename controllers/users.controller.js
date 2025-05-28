@@ -1,6 +1,5 @@
 import { UserModel } from '../models/users.model.js'
-import { hashPassword } from '../utils/password.js'
-import { comparePassword } from '../utils/password.js'
+import { hashPassword, comparePassword } from '../utils/password.js'
 
 const createUser = async (req, res, next) => {
   try {
@@ -14,6 +13,14 @@ const createUser = async (req, res, next) => {
 
     return res.status(201).json({ message: 'Usuario creado con éxito', user: newUser })
   } catch (error) {
+    // Validar si el error es por clave duplicada
+    if (error.code === '23505' && error.constraint === 'user_email_key') {
+      return res.status(400).json({
+        status: 400,
+        message: 'El correo electrónico ya está registrado.',
+      })
+    }
+
     next(error)
   }
 }
@@ -21,9 +28,7 @@ const createUser = async (req, res, next) => {
 const getAllUsers = async (req, res, next) => {
   try {
     const users = await UserModel.getAllUsers()
-
-    const usersWithoutPassword = users.map(({ password, ...user }) => user)
-    return res.status(200).json(usersWithoutPassword)
+    res.status(200).json(users.map(({ password, ...user }) => user))
   } catch (error) {
     next(error)
   }
@@ -33,14 +38,11 @@ const getUserById = async (req, res, next) => {
   try {
     const { id } = req.params
     const user = await UserModel.getUserById(id)
-
     if (!user) {
       return res.status(404).json({ message: 'Usuario no encontrado' })
     }
-
     const { password, ...userWithoutPassword } = user
-
-    return res.status(200).json(userWithoutPassword)
+    res.status(200).json(userWithoutPassword)
   } catch (error) {
     next(error)
   }
@@ -51,18 +53,22 @@ const updateUser = async (req, res, next) => {
     const { id } = req.params
     const updates = req.body
 
+    // Actualizar usuario
     const updatedUser = await UserModel.updateUser(id, updates)
-
     if (!updatedUser) {
       return res.status(404).json({ message: 'Usuario no encontrado' })
     }
 
-    // Desestructurar para excluir la contraseña
-    const { password, ...userWithoutPassword } = updatedUser
+    const { password, ...filteredUser } = updatedUser
+    const limitedUserData = {
+      id: filteredUser.id,
+      firstName: filteredUser.first_name,
+      lastName: filteredUser.last_name,
+      email: filteredUser.email,
+      status: filteredUser.status,
+    }
 
-    return res
-      .status(200)
-      .json({ message: 'Usuario actualizado con éxito', user: userWithoutPassword })
+    res.status(200).json({ message: 'Usuario actualizado con éxito', user: limitedUserData })
   } catch (error) {
     next(error)
   }
@@ -71,14 +77,11 @@ const updateUser = async (req, res, next) => {
 const deleteUser = async (req, res, next) => {
   try {
     const { id } = req.params
-
     const deletedUser = await UserModel.deleteUser(id)
-
     if (!deletedUser) {
       return res.status(404).json({ message: 'Usuario no encontrado' })
     }
-
-    return res.status(200).json({ message: 'Usuario eliminado con éxito' })
+    res.status(200).json({ message: 'Usuario eliminado con éxito' })
   } catch (error) {
     next(error)
   }
@@ -94,38 +97,49 @@ const changePassword = async (req, res, next) => {
       return res.status(404).json({ message: 'Usuario no encontrado' })
     }
 
-    // Verificar que la contraseña actual coincida
     const isMatch = await comparePassword(currentPassword, user.password)
     if (!isMatch) {
       return res.status(400).json({ message: 'Contraseña actual incorrecta' })
     }
 
-    // Hashear la nueva contraseña
     const hashedPassword = await hashPassword(newPassword)
-
-    const wasUpdated = await UserModel.updateUser(id, { password: hashedPassword })
-    if (!wasUpdated) {
-      return res.status(404).json({ message: 'Usuario no encontrado' })
-    }
-
-    return res.status(200).json({ message: 'Contraseña actualizada con éxito' })
+    const updatedUser = await UserModel.updateUser(id, { password: hashedPassword })
+    res.status(200).json({ message: 'Contraseña actualizada con éxito' })
   } catch (error) {
     next(error)
   }
 }
 
 const changeStatus = async (req, res, next) => {
+  const validStatuses = ['Active', 'Inactive']
   try {
     const { id } = req.params
     const { newStatus } = req.body
 
-    const wasUpdated = await UserModel.updateUser(id, { status: newStatus })
+    if (!validStatuses.includes(newStatus)) {
+      return res.status(400).json({
+        message: 'Estado no válido. Los estados permitidos son Active o Inactive.',
+      })
+    }
 
-    if (!wasUpdated) {
+    const updatedUser = await UserModel.updateUser(id, { status: newStatus })
+    if (!updatedUser) {
       return res.status(404).json({ message: 'Usuario no encontrado' })
     }
 
-    return res.status(200).json({ message: 'Estado actualizado con éxito', status: newStatus })
+    // Crear un objeto solo con los campos que quieres mostrar
+    const userToShow = {
+      id: updatedUser.id,
+      first_name: updatedUser.first_name,
+      last_name: updatedUser.last_name,
+      email: updatedUser.email,
+      status: updatedUser.status,
+    }
+
+    res.status(200).json({
+      message: 'Estado actualizado con éxito',
+      user: userToShow,
+    })
   } catch (error) {
     next(error)
   }
