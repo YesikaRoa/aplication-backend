@@ -1,4 +1,4 @@
-import { UserModel } from '../models/users.model.js'
+import { UserModel } from '../models/users.model'
 import { hashPassword, comparePassword } from '../utils/password.js'
 
 const createUser = async (req, res, next) => {
@@ -25,7 +25,7 @@ const createUser = async (req, res, next) => {
   }
 }
 
-const getAllUsers = async (req, res, next) => {
+const getAllUser = async (req, res, next) => {
   try {
     const users = await UserModel.getAllUsers()
     res.status(200).json(users.map(({ password, ...user }) => user))
