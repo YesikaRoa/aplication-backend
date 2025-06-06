@@ -47,7 +47,7 @@ const getAppointmentById = async (id) => {
   return rows[0]
 }
 
-const updateAppointment = async (updates) => {
+const updateAppointment = async (id, updates) => {
   if (!Object.keys(updates).length) {
     throw new Error('No updates provided')
   }
@@ -78,6 +78,6 @@ export const AppointmentsModel = {
   createAppointment,
   getAllAppointments,
   getAppointmentById,
-  updateAppointmen,
+  updateAppointment,
   deleteAppointment,
 }

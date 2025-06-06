@@ -1,4 +1,4 @@
-import { UserModel } from '../models/users.model'
+import { UserModel } from '../models/users.model.js'
 import { hashPassword, comparePassword } from '../utils/password.js'
 
 const createUser = async (req, res, next) => {
@@ -78,6 +78,7 @@ const deleteUser = async (req, res, next) => {
   try {
     const { id } = req.params
     const deletedUser = await UserModel.deleteUser(id)
+
     if (!deletedUser) {
       return res.status(404).json({ message: 'Usuario no encontrado' })
     }
@@ -147,7 +148,7 @@ const changeStatus = async (req, res, next) => {
 
 export const UsersController = {
   createUser,
-  getAllUsers,
+  getAllUser,
   getUserById,
   updateUser,
   deleteUser,

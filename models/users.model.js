@@ -54,7 +54,7 @@ const getUserById = async (id) => {
 }
 
 // Actualizar usuario
-const updateUser = async (updates) => {
+const updateUser = async (id, updates) => {
   if (!Object.keys(updates).length) {
     throw new Error('No updates provided')
   }
@@ -75,7 +75,7 @@ const updateUser = async (updates) => {
 // Eliminar usuario
 const deleteUser = async (id) => {
   const query = {
-    text: `DELETE users WHERE id = $1 RETURNING id`,
+    text: `DELETE  from users WHERE id = $1 RETURNING id`,
     values: [id],
   }
   const { rows } = await db.query(query)

@@ -12,7 +12,7 @@ const createAppointment = async (req, res, next) => {
 const getAllAppointments = async (req, res, next) => {
   try {
     const appointments = await AppointmentsModel.getAllAppointments()
-    status(200).json(appointments)
+    return res.status(200).json(appointments)
   } catch (error) {
     next(error)
   }
@@ -33,7 +33,7 @@ const getAppointmentById = async (req, res, next) => {
   }
 }
 
-const updateApointment = async (req, res, next) => {
+const updateAppointment = async (req, res, next) => {
   try {
     const { id } = req.params
     const updates = req.body

@@ -4,7 +4,11 @@ import { validateSchema } from '../middlewares/validateSchema.js'
 import { validateUserId } from '../middlewares/validateParams.js'
 
 import { authenticateToken } from '../middlewares/auth.js'
-import { updateAppointmentSchema, changeStatusSchema } from '../schemas/appointments.schema.js'
+import {
+  updateAppointmentSchema,
+  changeStatusSchema,
+  createAppointmentSchema,
+} from '../schemas/appointments.schema.js'
 
 const router = Router()
 
@@ -12,7 +16,7 @@ router.post('/', validateSchema(createAppointmentSchema), AppointmentsController
 
 router.get('/', authenticateToken, AppointmentsController.getAllAppointments)
 
-router.get('/:id', authenticateToken, validateUserId, AppointmentsController.getAppointment)
+router.get('/:id', authenticateToken, validateUserId, AppointmentsController.getAppointmentById)
 
 // Actualizar una cita
 router.put(

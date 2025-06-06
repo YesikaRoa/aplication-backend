@@ -16,10 +16,10 @@ const router = Router()
 router.post('/', validateSchema(createUserSchema), UsersController.createUser)
 
 // Obtener todos los usuarios
-router.get('/', authenticateToken, UsersController.getAllUsers)
+router.get('/', authenticateToken, UsersController.getAllUser)
 
 // Obtener un usuario por ID
-router.get('/', authenticateToken, validateUserId, UsersController.getUserById)
+router.get('/:id', authenticateToken, validateUserId, UsersController.getUserById)
 
 // Actualizar un usuario
 router.put(
@@ -31,7 +31,7 @@ router.put(
 )
 
 // Eliminar un usuario
-router.get('/:id', authenticateToken, validateUserId, UsersController.deleteUser)
+router.delete('/:id', authenticateToken, validateUserId, UsersController.deleteUser)
 
 // Cambiar la contraseña
 router.put(
