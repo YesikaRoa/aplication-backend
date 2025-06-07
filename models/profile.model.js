@@ -53,7 +53,7 @@ const updateProfile = async (id, updates) => {
         .join(', ')
 
       const personalQuery = {
-        text: `UPDATE users SET ${personalFields} WHERE id = $1`,
+        text: `UPDATE users SET ${personalFields}${personalFields ? ', ' : ''}updated_at = NOW() WHERE id = $1`,
         values: [id, ...Object.values(updates.userData)],
       }
 
@@ -70,7 +70,7 @@ const updateProfile = async (id, updates) => {
 
       if (professionalFields) {
         const professionalQuery = {
-          text: `UPDATE professional SET ${professionalFields} WHERE user_id = $1`,
+          text: `UPDATE professional SET ${professionalFields}${professionalFields ? ', ' : ''}updated_at = NOW() WHERE user_id = $1`,
           values: [
             id,
             ...Object.values(updates.professionalData).filter((value) => typeof value !== 'object'),
@@ -131,6 +131,7 @@ const updateProfile = async (id, updates) => {
     client.release()
   }
 }
+
 const getUserByIdWithPassword = async (id) => {
   const query = {
     text: 'SELECT id, email, password FROM users WHERE id = $1',

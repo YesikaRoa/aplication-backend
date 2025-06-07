@@ -1,11 +1,11 @@
-import { userIdSchema } from '../schemas/users.schema.js'
+import { createError } from '../utils/errors.js'
 
 export const validateUserId = (req, res, next) => {
-  try {
-    const params = userIdSchema.parse(req.params)
-    req.params = params // Actualiza los parámetros si son válidos
-    next()
-  } catch (error) {
-    return res.status(400).json({ status: 400, message: error.errors[0].message })
+  const { id } = req.params
+  // Verifica que id sea un número entero positivo
+  if (!id || isNaN(id) || parseInt(id) <= 0) {
+    return next(createError('INVALID_ID'))
   }
+  req.params.id = parseInt(id)
+  next()
 }

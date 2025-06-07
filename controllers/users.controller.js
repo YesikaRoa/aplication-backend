@@ -1,5 +1,6 @@
 import { UserModel } from '../models/users.model.js'
 import { hashPassword, comparePassword } from '../utils/password.js'
+import { createError } from '../utils/errors.js'
 
 const createUser = async (req, res, next) => {
   try {
@@ -15,10 +16,7 @@ const createUser = async (req, res, next) => {
   } catch (error) {
     // Validar si el error es por clave duplicada
     if (error.code === '23505' && error.constraint === 'user_email_key') {
-      return res.status(400).json({
-        status: 400,
-        message: 'El correo electrónico ya está registrado.',
-      })
+      return next(createError('EMAIL_IN_USE'))
     }
 
     next(error)
@@ -38,9 +36,9 @@ const getUserById = async (req, res, next) => {
   try {
     const { id } = req.params
     const user = await UserModel.getUserById(id)
-    if (!user) {
-      return res.status(404).json({ message: 'Usuario no encontrado' })
-    }
+
+    if (!user) throw createError('USER_NOT_FOUND')
+
     const { password, ...userWithoutPassword } = user
     res.status(200).json(userWithoutPassword)
   } catch (error) {
@@ -55,9 +53,7 @@ const updateUser = async (req, res, next) => {
 
     // Actualizar usuario
     const updatedUser = await UserModel.updateUser(id, updates)
-    if (!updatedUser) {
-      return res.status(404).json({ message: 'Usuario no encontrado' })
-    }
+    if (!updatedUser) throw createError('USER_NOT_FOUND')
 
     const { password, ...filteredUser } = updatedUser
     const limitedUserData = {
@@ -79,9 +75,8 @@ const deleteUser = async (req, res, next) => {
     const { id } = req.params
     const deletedUser = await UserModel.deleteUser(id)
 
-    if (!deletedUser) {
-      return res.status(404).json({ message: 'Usuario no encontrado' })
-    }
+    if (!deletedUser) throw createError('USER_NOT_FOUND')
+
     res.status(200).json({ message: 'Usuario eliminado con éxito' })
   } catch (error) {
     next(error)
@@ -94,14 +89,10 @@ const changePassword = async (req, res, next) => {
     const { currentPassword, newPassword } = req.body
 
     const user = await UserModel.getUserById(id)
-    if (!user) {
-      return res.status(404).json({ message: 'Usuario no encontrado' })
-    }
+    if (!user) throw createError('USER_NOT_FOUND')
 
     const isMatch = await comparePassword(currentPassword, user.password)
-    if (!isMatch) {
-      return res.status(400).json({ message: 'Contraseña actual incorrecta' })
-    }
+    if (!isMatch) throw createError('INVALID_PASSWORD')
 
     const hashedPassword = await hashPassword(newPassword)
     const updatedUser = await UserModel.updateUser(id, { password: hashedPassword })
@@ -117,16 +108,10 @@ const changeStatus = async (req, res, next) => {
     const { id } = req.params
     const { newStatus } = req.body
 
-    if (!validStatuses.includes(newStatus)) {
-      return res.status(400).json({
-        message: 'Estado no válido. Los estados permitidos son Active o Inactive.',
-      })
-    }
+    if (!validStatuses.includes(newStatus)) throw createError('INVALID_STATUS')
 
     const updatedUser = await UserModel.updateUser(id, { status: newStatus })
-    if (!updatedUser) {
-      return res.status(404).json({ message: 'Usuario no encontrado' })
-    }
+    if (!updatedUser) throw createError('USER_NOT_FOUND')
 
     // Crear un objeto solo con los campos que quieres mostrar
     const userToShow = {

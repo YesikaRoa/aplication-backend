@@ -20,6 +20,7 @@ export const updateProfileSchema = z.object({
     .object({
       biography: z.string().optional(),
       years_of_experience: z.number().int().optional(),
+      professional_type_id: z.number().int().optional(),
       specialties: z.array(z.number().int()).optional(),
     })
     .optional(),

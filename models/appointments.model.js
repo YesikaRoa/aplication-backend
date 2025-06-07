@@ -1,4 +1,5 @@
 import { db } from '../database/connection.js'
+import { createError } from '../utils/errors.js'
 
 const createAppointment = async ({
   scheduled_at,
@@ -49,7 +50,7 @@ const getAppointmentById = async (id) => {
 
 const updateAppointment = async (id, updates) => {
   if (!Object.keys(updates).length) {
-    throw new Error('No updates provided')
+    throw createError('NO_UPDATES_PROVIDED')
   }
 
   const fields = Object.keys(updates)
@@ -57,7 +58,7 @@ const updateAppointment = async (id, updates) => {
     .join(', ')
 
   const query = {
-    text: `UPDATE appointment SET ${fields} WHERE id = $1 RETURNING *`,
+    text: `UPDATE appointment SET ${fields}${fields ? ', ' : ''}updated_at = NOW() WHERE id = $1 RETURNING *`,
     values: [id, ...Object.values(updates)],
   }
 
