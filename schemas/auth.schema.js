@@ -6,7 +6,7 @@ export const registerUserSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters long'),
   address: z.string().optional(),
-  phone: z.string().regex(/^\d{12}$/, 'Phone must be a valid 12-digit number'),
+  phone: z.string().regex(/^\d{11}$/, 'Phone must be a valid 12-digit number'),
   birth_date: z.preprocess((arg) => {
     if (typeof arg === 'string' || arg instanceof Date) {
       return new Date(arg)
@@ -17,9 +17,9 @@ export const registerUserSchema = z.object({
   role_id: z.number(),
   status: z.enum(['Active', 'Inactive']),
   professional_type_id: z.number(),
-  biography: z.string().optional(),
+  biography: z.string(),
   years_of_experience: z.number().min(0, 'Years of experience must be a positive number'),
-  specialty_ids: z.array(z.number()).optional(),
+  specialty_ids: z.array(z.number()),
 })
 
 export const loginUserSchema = z.object({

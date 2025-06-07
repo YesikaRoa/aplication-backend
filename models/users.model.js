@@ -1,4 +1,5 @@
 import { db } from '../database/connection.js'
+import { createError } from '../utils/errors.js'
 
 // Crear usuario
 const createUser = async ({
@@ -55,16 +56,13 @@ const getUserById = async (id) => {
 
 // Actualizar usuario
 const updateUser = async (id, updates) => {
-  if (!Object.keys(updates).length) {
-    throw new Error('No updates provided')
-  }
-
   const fields = Object.keys(updates)
     .map((key, index) => `${key} = $${index + 2}`)
     .join(', ')
 
+  // Agrega updated_at con NOW()
   const query = {
-    text: `UPDATE users SET ${fields} WHERE id = $1 RETURNING *`,
+    text: `UPDATE users SET ${fields}${fields ? ', ' : ''}updated_at = NOW() WHERE id = $1 RETURNING *`,
     values: [id, ...Object.values(updates)],
   }
 
@@ -73,6 +71,7 @@ const updateUser = async (id, updates) => {
 }
 
 // Eliminar usuario
+
 const deleteUser = async (id) => {
   const query = {
     text: `DELETE  from users WHERE id = $1 RETURNING id`,
@@ -85,7 +84,7 @@ const deleteUser = async (id) => {
 // Cambiar contraseña
 const changePassword = async (id, newPassword) => {
   const query = {
-    text: `UPDATE users SET password = $2 WHERE id = $1 RETURNING id, email`,
+    text: `UPDATE users SET password = $2, updated_at = NOW() WHERE id = $1 RETURNING id, email`,
     values: [id, newPassword],
   }
   const { rows } = await db.query(query)

@@ -1,4 +1,5 @@
 import { AppointmentsModel } from '../models/appointments.model.js'
+import { createError } from '../utils/errors.js'
 
 const createAppointment = async (req, res, next) => {
   try {
@@ -23,9 +24,7 @@ const getAppointmentById = async (req, res, next) => {
     const { id } = req.params
     const appointment = await AppointmentsModel.getAppointmentById(id)
 
-    if (!appointment) {
-      return res.status(404).json({ message: 'Cita no encontrada' })
-    }
+    if (!appointment) throw createError('RECORD_NOT_FOUND')
 
     res.status(200).json(appointment)
   } catch (error) {
@@ -39,9 +38,7 @@ const updateAppointment = async (req, res, next) => {
     const updates = req.body
     const updatedAppointment = await AppointmentsModel.updateAppointment(id, updates)
 
-    if (!updatedAppointment) {
-      return res.status(404).json({ message: 'Cita no encontrada' })
-    }
+    if (!updatedAppointment) throw createError('RECORD_NOT_FOUND')
 
     res.status(200).json({
       message: 'Cita actualizada con éxito',
@@ -57,9 +54,7 @@ const deleteAppointment = async (req, res, next) => {
     const { id } = req.params
     const deleted = await AppointmentsModel.deleteAppointment(id)
 
-    if (!deleted) {
-      return res.status(404).json({ message: 'Cita no encontrada' })
-    }
+    if (!deleted) throw createError('RECORD_NOT_FOUND')
 
     res.status(200).json({ message: 'Cita eliminada con éxito' })
   } catch (error) {
@@ -73,14 +68,10 @@ const changeStatus = async (req, res, next) => {
     const { id } = req.params
     const { status } = req.body
 
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({ message: 'Estado no válido' })
-    }
+    if (!validStatuses.includes(status)) throw createError('INVALID_STATUS')
 
     const updatedAppointment = await AppointmentsModel.updateAppointment(id, { status })
-    if (!updatedAppointment) {
-      return res.status(404).json({ message: 'Cita no encontrada' })
-    }
+    if (!updatedAppointment) throw createError('RECORD_NOT_FOUND')
 
     res.status(200).json({
       message: 'Estado de la cita actualizado con éxito',

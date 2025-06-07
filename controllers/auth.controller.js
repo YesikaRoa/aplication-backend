@@ -1,8 +1,8 @@
-import { validateEmailExists, validatePassword } from '../utils/validations/auth.validations.js'
+import { validateEmailExists, validatePassword } from '../utils/auth.validations.js'
 import { UserModel } from '../models/auth.model.js'
-
 import { hashPassword } from '../utils/password.js'
 import jwt from 'jsonwebtoken'
+import { createError } from '../utils/errors.js'
 
 const registerUser = async (req, res, next) => {
   try {
@@ -17,11 +17,9 @@ const registerUser = async (req, res, next) => {
     } = req.body
 
     // Validar existencia del email
-    try {
-      await validateEmailExists(email)
-      return res.status(400).json({ message: 'User already exists' })
-    } catch (error) {
-      if (error.message !== 'Invalid email') throw error
+    const existingUser = await UserModel.findUserByEmail(email)
+    if (existingUser) {
+      return next(createError('EMAIL_IN_USE'))
     }
 
     // Hashear la contraseña
@@ -57,10 +55,19 @@ const loginUser = async (req, res, next) => {
     const { email, password } = req.body
 
     // Validar email
-    const user = await validateEmailExists(email)
+    let user
+    try {
+      user = await validateEmailExists(email)
+    } catch (error) {
+      return next(createError('INVALID_CREDENTIALS'))
+    }
 
     // Validar contraseña
-    await validatePassword(password, user.password)
+    try {
+      await validatePassword(password, user.password)
+    } catch (error) {
+      return next(createError('INVALID_CREDENTIALS'))
+    }
 
     // Generar token JWT
     const token = jwt.sign({ id: user.id, role: user.role_id }, process.env.JWT_SECRET, {
@@ -72,6 +79,7 @@ const loginUser = async (req, res, next) => {
     next(error)
   }
 }
+
 export const UserController = {
   registerUser,
   loginUser,

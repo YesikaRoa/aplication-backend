@@ -63,8 +63,3 @@ export const changePasswordSchema = z.object({
 export const changeStatusSchema = z.object({
   newStatus: z.enum(['Active', 'Inactive'], 'New status must be either Active or Inactive'),
 })
-
-// Validación para un ID válido (entero positivo)
-export const userIdSchema = z.object({
-  id: z.string().regex(/^\d+$/, 'ID must be a valid integer'),
-})

@@ -1,14 +1,20 @@
 import { ProfileModel } from '../models/profile.model.js'
 import { comparePassword, hashPassword } from '../utils/password.js'
+import { createError } from '../utils/errors.js'
 
 const getProfile = async (req, res, next) => {
   try {
-    const { id } = req.params
+    const id = req.user.id
+
+    // Solo puede ver su propio perfil
+    if (req.user.id !== Number(id)) {
+      return next(createError('UNAUTHORIZED'))
+    }
 
     const profile = await ProfileModel.getProfile(id)
 
     if (!profile) {
-      return res.status(404).json({ message: 'Perfil no encontrado' })
+      return next(createError('PROFILE_NOT_FOUND'))
     }
 
     return res.status(200).json(profile)
@@ -19,14 +25,16 @@ const getProfile = async (req, res, next) => {
 
 const updateProfile = async (req, res, next) => {
   try {
-    const { id } = req.params
+    const id = req.user.id
     const updates = req.body
+
+    if (Number(req.user.id) !== Number(id)) {
+      return next(createError('UNAUTHORIZED'))
+    }
 
     const success = await ProfileModel.updateProfile(id, updates)
 
-    if (!success) {
-      return res.status(404).json({ message: 'Usuario no encontrado' })
-    }
+    if (!success) throw createError('USER_NOT_FOUND')
 
     return res.status(200).json({ message: 'Perfil actualizado con éxito' })
   } catch (error) {
@@ -36,32 +44,35 @@ const updateProfile = async (req, res, next) => {
 
 export const changePassword = async (req, res, next) => {
   try {
-    const { id } = req.params
+    const id = req.user.id
     const { currentPassword, newPassword, confirmPassword } = req.body
 
+    // Solo puede cambiar su propia contraseña
+    if (req.user.id !== Number(id)) {
+      return next(createError('UNAUTHORIZED'))
+    }
+
     if (!currentPassword || !newPassword || !confirmPassword) {
-      return res.status(400).json({ message: 'Todos los campos son obligatorios' })
+      throw createError('FIELDS_REQUIRED')
     }
 
     if (newPassword !== confirmPassword) {
-      return res.status(400).json({ message: 'La confirmación de la contraseña no coincide' })
+      throw createError('PASSWORD_CONFIRMATION_MISMATCH')
     }
 
     const user = await ProfileModel.getUserByIdWithPassword(id)
     if (!user) {
-      return res.status(404).json({ message: 'Usuario no encontrado' })
+      throw createError('USER_NOT_FOUND')
     }
 
     const isMatch = await comparePassword(currentPassword, user.password)
     if (!isMatch) {
-      return res.status(400).json({ message: 'Contraseña actual incorrecta' })
+      throw createError('INVALID_PASSWORD')
     }
 
     const hashedPassword = await hashPassword(newPassword)
     const updatedUser = await ProfileModel.changePassword(id, hashedPassword)
-    if (!updatedUser) {
-      return res.status(500).json({ message: 'No se pudo actualizar la contraseña' })
-    }
+    if (!updatedUser) throw createError('INTERNAL_SERVER_ERROR')
 
     return res.status(200).json({ message: 'Contraseña actualizada con éxito' })
   } catch (error) {

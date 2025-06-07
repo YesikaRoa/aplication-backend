@@ -7,21 +7,19 @@ import { validateUserId } from '../middlewares/validateParams.js'
 const router = Router()
 
 // Obtener perfil
-router.get('/:id', authenticateToken, validateUserId, ProfileController.getProfile)
+router.get('/', authenticateToken, ProfileController.getProfile)
 
 // Actualizar perfil
 router.put(
-  '/:id',
+  '/',
   authenticateToken,
-  validateUserId,
   validateSchema(updateProfileSchema),
   ProfileController.updateProfile,
 )
 //Actualizar password
 router.put(
-  '/password/:id',
+  '/password',
   authenticateToken,
-  validateUserId,
   validateSchema(changePasswordSchema),
   ProfileController.changePassword,
 )
