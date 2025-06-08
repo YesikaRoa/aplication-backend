@@ -1,4 +1,5 @@
 import { db } from '../database/connection.js'
+import { createError } from '../utils/errors.js'
 
 // Obtener el perfil completo (personal y profesional)
 const getProfile = async (id) => {
@@ -31,9 +32,9 @@ const getProfile = async (id) => {
   LEFT JOIN professional_type pt ON pt.id = p.professional_type_id
   WHERE u.id = $1
   GROUP BY u.id, p.id, pt.name;
-`
+  `
   const { rows } = await db.query(query, [id])
-
+  if (!rows[0]) throw createError('PROFILE_NOT_FOUND')
   return rows[0]
 }
 
@@ -123,7 +124,10 @@ const updateProfile = async (id, updates) => {
     await client.query('COMMIT')
 
     // Devuelve verdadero solo si al menos una tabla fue afectada
-    return userRowsAffected > 0 || professionalRowsAffected > 0
+    if (userRowsAffected === 0 && professionalRowsAffected === 0) {
+      throw createError('USER_NOT_FOUND')
+    }
+    return true
   } catch (error) {
     await client.query('ROLLBACK')
     throw error
@@ -138,6 +142,7 @@ const getUserByIdWithPassword = async (id) => {
     values: [id],
   }
   const { rows } = await db.query(query)
+  if (!rows[0]) throw createError('USER_NOT_FOUND')
   return rows[0]
 }
 
@@ -148,6 +153,7 @@ const changePassword = async (id, newPassword) => {
     values: [id, newPassword],
   }
   const { rows } = await db.query(query)
+  if (!rows[0]) throw createError('INTERNAL_SERVER_ERROR')
   return rows[0]
 }
 

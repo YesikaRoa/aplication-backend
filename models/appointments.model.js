@@ -28,6 +28,7 @@ const createAppointment = async ({
     ],
   }
   const { rows } = await db.query(query)
+  if (!rows[0]) throw createError('INTERNAL_SERVER_ERROR')
   return rows[0]
 }
 
@@ -45,6 +46,7 @@ const getAppointmentById = async (id) => {
     values: [id],
   }
   const { rows } = await db.query(query)
+  if (!rows[0]) throw createError('RECORD_NOT_FOUND')
   return rows[0]
 }
 
@@ -63,6 +65,7 @@ const updateAppointment = async (id, updates) => {
   }
 
   const { rows } = await db.query(query)
+  if (!rows[0]) throw createError('RECORD_NOT_FOUND')
   return rows[0]
 }
 
@@ -72,6 +75,7 @@ const deleteAppointment = async (id) => {
     values: [id],
   }
   const { rows } = await db.query(query)
+  if (!rows[0]) throw createError('RECORD_NOT_FOUND')
   return rows[0]
 }
 

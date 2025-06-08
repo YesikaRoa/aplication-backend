@@ -1,4 +1,5 @@
 import { db } from '../database/connection.js'
+import { createError } from '../utils/errors.js'
 
 const createUser = async ({
   first_name,
@@ -14,8 +15,8 @@ const createUser = async ({
 }) => {
   const query = {
     text: `INSERT INTO users (first_name, last_name, email, password, address, phone, birth_date, gender, role_id, status) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
-         RETURNING id, email, first_name, last_name`,
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
+           RETURNING id, email, first_name, last_name`,
     values: [
       first_name,
       last_name,
@@ -30,8 +31,10 @@ const createUser = async ({
     ],
   }
   const { rows } = await db.query(query)
+  if (!rows[0]) throw createError('INTERNAL_SERVER_ERROR')
   return rows[0]
 }
+
 const createProfessional = async ({
   user_id,
   professional_type_id,
@@ -44,10 +47,14 @@ const createProfessional = async ({
     values: [user_id, professional_type_id, biography, years_of_experience],
   }
   const { rows } = await db.query(query)
+  if (!rows[0]) throw createError('INTERNAL_SERVER_ERROR')
   return rows[0]
 }
 
 const createProfessionalSpecialty = async ({ professional_id, specialty_ids }) => {
+  if (!Array.isArray(specialty_ids) || specialty_ids.length === 0) {
+    throw createError('FIELDS_REQUIRED')
+  }
   const query = {
     text: `INSERT INTO professional_specialty (professional_id, specialty_id)
            VALUES ${specialty_ids.map((_, index) => `($1, $${index + 2})`).join(',')}`,
@@ -62,7 +69,7 @@ const findUserByEmail = async (email) => {
     values: [email],
   }
   const { rows } = await db.query(query)
-  return rows[0]
+  return rows[0] || null
 }
 
 export const UserModel = {

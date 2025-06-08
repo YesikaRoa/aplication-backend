@@ -2,7 +2,6 @@ import { validateEmailExists, validatePassword } from '../utils/auth.validations
 import { UserModel } from '../models/auth.model.js'
 import { hashPassword } from '../utils/password.js'
 import jwt from 'jsonwebtoken'
-import { createError } from '../utils/errors.js'
 
 const registerUser = async (req, res, next) => {
   try {
@@ -19,7 +18,7 @@ const registerUser = async (req, res, next) => {
     // Validar existencia del email
     const existingUser = await UserModel.findUserByEmail(email)
     if (existingUser) {
-      return next(createError('EMAIL_IN_USE'))
+      return next(new Error('EMAIL_IN_USE'))
     }
 
     // Hashear la contraseña
@@ -59,14 +58,14 @@ const loginUser = async (req, res, next) => {
     try {
       user = await validateEmailExists(email)
     } catch (error) {
-      return next(createError('INVALID_CREDENTIALS'))
+      return next(error)
     }
 
     // Validar contraseña
     try {
       await validatePassword(password, user.password)
     } catch (error) {
-      return next(createError('INVALID_CREDENTIALS'))
+      return next(error)
     }
 
     // Generar token JWT
