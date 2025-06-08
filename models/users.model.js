@@ -13,8 +13,10 @@ const createUser = async ({
   gender,
   role_id,
   status,
+  additional_data,
+  specialties = [], // Ahora specialties es el único arreglo con todo
 }) => {
-  // Validar si el email ya existe
+  // Validar email
   const emailQuery = {
     text: `SELECT id FROM users WHERE email = $1`,
     values: [email],
@@ -22,7 +24,8 @@ const createUser = async ({
   const { rows: existing } = await db.query(emailQuery)
   if (existing[0]) throw createError('EMAIL_IN_USE')
 
-  const query = {
+  // Insertar usuario
+  const userQuery = {
     text: `INSERT INTO users (first_name, last_name, email, password, address, phone, birth_date, gender, role_id, status) 
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
            RETURNING id, email, first_name, last_name`,
@@ -39,8 +42,66 @@ const createUser = async ({
       status,
     ],
   }
-  const { rows } = await db.query(query)
-  return rows[0]
+  const { rows: userRows } = await db.query(userQuery)
+  const userId = userRows[0].id
+
+  if (role_id === 2) {
+    // Patient
+    const patientQuery = {
+      text: `INSERT INTO patient (user_id, medical_data, created_at, updated_at) 
+             VALUES ($1, $2, NOW(), NOW())`,
+      values: [userId, additional_data?.medical_data || null],
+    }
+    await db.query(patientQuery)
+  } else if (role_id === 3) {
+    // Professional
+
+    // Primero insertamos datos en professional
+    const professionalQuery = {
+      text: `INSERT INTO professional (user_id, professional_type_id, biography, years_of_experience) 
+             VALUES ($1, $2, $3, $4) 
+             RETURNING id`,
+      values: [
+        userId,
+        additional_data?.professional_type_id || null,
+        additional_data?.biography || null,
+        additional_data?.years_of_experience || 0,
+      ],
+    }
+    const { rows: professionalRows } = await db.query(professionalQuery)
+    const professionalId = professionalRows[0].id
+
+    // Separar specialties y subspecialties
+    const specialtyIds = specialties.filter((id) => id >= 1 && id <= 15)
+    const subspecialtyIds = specialties.filter((id) => id >= 16 && id <= 60)
+
+    // Insertar specialties
+    for (const specialtyId of specialtyIds) {
+      const specialtyQuery = {
+        text: `INSERT INTO professional_specialty (professional_id, specialty_id) VALUES ($1, $2)`,
+        values: [professionalId, specialtyId],
+      }
+      await db.query(specialtyQuery)
+    }
+
+    // Insertar subspecialties validando parent_id
+    for (const subspecialtyId of subspecialtyIds) {
+      const validateSubspecialtyQuery = {
+        text: `SELECT id FROM specialty WHERE id = $1 AND parent_id IS NOT NULL`,
+        values: [subspecialtyId],
+      }
+      const { rows: valid } = await db.query(validateSubspecialtyQuery)
+      if (!valid[0]) throw createError(`Invalid subspecialty ID: ${subspecialtyId}`)
+
+      const subspecialtyQuery = {
+        text: `INSERT INTO professional_specialty (professional_id, specialty_id) VALUES ($1, $2)`,
+        values: [professionalId, subspecialtyId],
+      }
+      await db.query(subspecialtyQuery)
+    }
+  }
+
+  return userRows[0]
 }
 
 // Obtener todos los usuarios
