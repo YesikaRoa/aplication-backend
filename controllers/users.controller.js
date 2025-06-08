@@ -1,24 +1,13 @@
 import { UserModel } from '../models/users.model.js'
 import { hashPassword, comparePassword } from '../utils/password.js'
-import { createError } from '../utils/errors.js'
 
 const createUser = async (req, res, next) => {
   try {
     const { password, ...otherDetails } = req.body
-
-    // Hashear la contraseña
     const hashedPassword = await hashPassword(password)
-
-    // Crear nuevo usuario
     const newUser = await UserModel.createUser({ ...otherDetails, password: hashedPassword })
-
     return res.status(201).json({ message: 'Usuario creado con éxito', user: newUser })
   } catch (error) {
-    // Validar si el error es por clave duplicada
-    if (error.code === '23505' && error.constraint === 'user_email_key') {
-      return next(createError('EMAIL_IN_USE'))
-    }
-
     next(error)
   }
 }
@@ -36,9 +25,6 @@ const getUserById = async (req, res, next) => {
   try {
     const { id } = req.params
     const user = await UserModel.getUserById(id)
-
-    if (!user) throw createError('USER_NOT_FOUND')
-
     const { password, ...userWithoutPassword } = user
     res.status(200).json(userWithoutPassword)
   } catch (error) {
@@ -50,11 +36,7 @@ const updateUser = async (req, res, next) => {
   try {
     const { id } = req.params
     const updates = req.body
-
-    // Actualizar usuario
     const updatedUser = await UserModel.updateUser(id, updates)
-    if (!updatedUser) throw createError('USER_NOT_FOUND')
-
     const { password, ...filteredUser } = updatedUser
     const limitedUserData = {
       id: filteredUser.id,
@@ -63,7 +45,6 @@ const updateUser = async (req, res, next) => {
       email: filteredUser.email,
       status: filteredUser.status,
     }
-
     res.status(200).json({ message: 'Usuario actualizado con éxito', user: limitedUserData })
   } catch (error) {
     next(error)
@@ -73,10 +54,7 @@ const updateUser = async (req, res, next) => {
 const deleteUser = async (req, res, next) => {
   try {
     const { id } = req.params
-    const deletedUser = await UserModel.deleteUser(id)
-
-    if (!deletedUser) throw createError('USER_NOT_FOUND')
-
+    await UserModel.deleteUser(id)
     res.status(200).json({ message: 'Usuario eliminado con éxito' })
   } catch (error) {
     next(error)
@@ -87,15 +65,11 @@ const changePassword = async (req, res, next) => {
   try {
     const { id } = req.params
     const { currentPassword, newPassword } = req.body
-
     const user = await UserModel.getUserById(id)
-    if (!user) throw createError('USER_NOT_FOUND')
-
     const isMatch = await comparePassword(currentPassword, user.password)
-    if (!isMatch) throw createError('INVALID_PASSWORD')
-
+    if (!isMatch) throw new Error('INVALID_PASSWORD') // Puedes manejar esto en el modelo si prefieres
     const hashedPassword = await hashPassword(newPassword)
-    const updatedUser = await UserModel.updateUser(id, { password: hashedPassword })
+    await UserModel.updateUser(id, { password: hashedPassword })
     res.status(200).json({ message: 'Contraseña actualizada con éxito' })
   } catch (error) {
     next(error)
@@ -107,13 +81,8 @@ const changeStatus = async (req, res, next) => {
   try {
     const { id } = req.params
     const { newStatus } = req.body
-
-    if (!validStatuses.includes(newStatus)) throw createError('INVALID_STATUS')
-
+    if (!validStatuses.includes(newStatus)) throw new Error('INVALID_STATUS')
     const updatedUser = await UserModel.updateUser(id, { status: newStatus })
-    if (!updatedUser) throw createError('USER_NOT_FOUND')
-
-    // Crear un objeto solo con los campos que quieres mostrar
     const userToShow = {
       id: updatedUser.id,
       first_name: updatedUser.first_name,
@@ -121,7 +90,6 @@ const changeStatus = async (req, res, next) => {
       email: updatedUser.email,
       status: updatedUser.status,
     }
-
     res.status(200).json({
       message: 'Estado actualizado con éxito',
       user: userToShow,
