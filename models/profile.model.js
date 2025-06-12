@@ -1,44 +1,45 @@
 import { db } from '../database/connection.js'
 import { createError } from '../utils/errors.js'
-
-// Obtener el perfil completo (personal y profesional)
+import { comparePassword, hashPassword } from '../utils/password.js'
 const getProfile = async (id) => {
+  if (!id) throw createError('FIELDS_REQUIRED')
+
   const query = `
     SELECT 
-    u.id AS user_id, 
-    u.first_name, 
-    u.last_name, 
-    u.email, 
-    u.address, 
-    u.phone, 
-    u.birth_date, 
-    u.gender, 
-    p.id AS professional_id, 
-    p.biography, 
-    p.years_of_experience, 
-    pt.name AS professional_type,
-    COALESCE(
-      ARRAY_AGG(DISTINCT CASE WHEN s.parent_id IS NULL THEN s.name END) FILTER (WHERE s.parent_id IS NULL),
-      '{}'
-    ) AS main_specialties,
-    COALESCE(
-      ARRAY_AGG(DISTINCT CASE WHEN s.parent_id IS NOT NULL THEN s.name END) FILTER (WHERE s.parent_id IS NOT NULL),
-      '{}'
-    ) AS sub_specialties
-  FROM users u
-  LEFT JOIN professional p ON p.user_id = u.id
-  LEFT JOIN professional_specialty ps ON ps.professional_id = p.id
-  LEFT JOIN specialty s ON s.id = ps.specialty_id
-  LEFT JOIN professional_type pt ON pt.id = p.professional_type_id
-  WHERE u.id = $1
-  GROUP BY u.id, p.id, pt.name;
+      u.id AS user_id, 
+      u.first_name, 
+      u.last_name, 
+      u.email, 
+      u.address, 
+      u.phone, 
+      u.birth_date, 
+      u.gender, 
+      p.id AS professional_id, 
+      p.biography, 
+      p.years_of_experience, 
+      pt.name AS professional_type,
+      COALESCE(
+        ARRAY_AGG(DISTINCT CASE WHEN s.parent_id IS NULL THEN s.name END) FILTER (WHERE s.parent_id IS NULL),
+        '{}'
+      ) AS main_specialties,
+      COALESCE(
+        ARRAY_AGG(DISTINCT CASE WHEN s.parent_id IS NOT NULL THEN s.name END) FILTER (WHERE s.parent_id IS NOT NULL),
+        '{}'
+      ) AS sub_specialties
+    FROM users u
+    LEFT JOIN professional p ON p.user_id = u.id
+    LEFT JOIN professional_specialty ps ON ps.professional_id = p.id
+    LEFT JOIN specialty s ON s.id = ps.specialty_id
+    LEFT JOIN professional_type pt ON pt.id = p.professional_type_id
+    WHERE u.id = $1
+    GROUP BY u.id, p.id, pt.name;
   `
+
   const { rows } = await db.query(query, [id])
   if (!rows[0]) throw createError('PROFILE_NOT_FOUND')
   return rows[0]
 }
 
-// Actualizar información personal y profesional
 const updateProfile = async (id, updates) => {
   const client = await db.connect()
   try {
@@ -136,25 +137,47 @@ const updateProfile = async (id, updates) => {
   }
 }
 
+// Función que solo obtiene usuario con password
 const getUserByIdWithPassword = async (id) => {
   const query = {
     text: 'SELECT id, email, password FROM users WHERE id = $1',
     values: [id],
   }
   const { rows } = await db.query(query)
-  if (!rows[0]) throw createError('USER_NOT_FOUND')
+  if (!rows[0]) throw createError(404, 'USER_NOT_FOUND')
   return rows[0]
 }
 
-// Actualizar password
-const changePassword = async (id, newPassword) => {
+// Función que actualiza la contraseña en la base de datos (sin lógica extra)
+const updatePasswordInDb = async (id, hashedPassword) => {
   const query = {
-    text: `UPDATE users SET password = $2 WHERE id = $1 RETURNING id, email`,
-    values: [id, newPassword],
+    text: 'UPDATE users SET password = $2 WHERE id = $1 RETURNING id, email',
+    values: [id, hashedPassword],
   }
   const { rows } = await db.query(query)
-  if (!rows[0]) throw createError('INTERNAL_SERVER_ERROR')
+  if (!rows[0]) throw createError(500, 'INTERNAL_SERVER_ERROR')
   return rows[0]
+}
+
+// Función principal que valida y actualiza contraseña
+const changePassword = async (id, { currentPassword, newPassword, confirmPassword }) => {
+  if (newPassword !== confirmPassword) {
+    throw createError('PASSWORDS_DO_NOT_MATCH')
+  }
+
+  const user = await getUserByIdWithPassword(id)
+
+  const isMatch = await comparePassword(currentPassword, user.password)
+  if (!isMatch) {
+    throw createError('INVALID_PASSWORD')
+  }
+
+  const hashedNewPassword = await hashPassword(newPassword)
+
+  // Aquí llamamos la función que actualiza en DB
+  const updatedUser = await updatePasswordInDb(id, hashedNewPassword)
+
+  return updatedUser
 }
 
 export const ProfileModel = {

@@ -1,6 +1,6 @@
 import { db } from '../database/connection.js'
 import { createError } from '../utils/errors.js'
-
+import { hashPassword } from '../utils/password.js'
 const PROFESSIONAL_FIELDS = `
   id,
   user_id,
@@ -10,34 +10,19 @@ const PROFESSIONAL_FIELDS = `
   created_at
 `
 
-const USER_FIELDS = `
-  id,
-  first_name,
-  last_name,
-  email,
-  password,
-  address,
-  phone,
-  birth_date,
-  gender,
-  role_id,
-  status,
-  created_at,
-  updated_at
-`
-
 export const ProfessionalModel = {
   async createProfessionalWithUser({ user, professional, specialties }) {
     const client = await db.connect()
     try {
       await client.query('BEGIN')
 
-      // Insertar usuario
+      // Hashear el password del usuario
+      const hashedPassword = await hashPassword(user.password)
       const userValues = [
         user.first_name,
         user.last_name,
         user.email,
-        user.password,
+        hashedPassword, // Usar el password hasheado
         user.address,
         user.phone,
         user.birth_date,
@@ -45,21 +30,23 @@ export const ProfessionalModel = {
         user.role_id,
         user.status,
       ]
+
+      // Insertar usuario
       const userInsert = `
-        INSERT INTO "users" 
-        (first_name, last_name, email, password, address, phone, birth_date, gender, role_id, status, created_at, updated_at)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW(),NOW())
-        RETURNING ${USER_FIELDS}
-      `
+      INSERT INTO "users" 
+      (first_name, last_name, email, password, address, phone, birth_date, gender, role_id, status, created_at, updated_at)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW(),NOW())
+      RETURNING id, first_name, last_name, email, status
+    `
       const { rows: userRows } = await client.query(userInsert, userValues)
       const newUser = userRows[0]
 
       // Insertar professional
       const professionalInsert = `
-        INSERT INTO professional (user_id, professional_type_id, biography, years_of_experience, created_at)
-        VALUES ($1, $2, $3, $4, NOW())
-        RETURNING ${PROFESSIONAL_FIELDS}
-      `
+      INSERT INTO professional (user_id, professional_type_id, biography, years_of_experience, created_at)
+      VALUES ($1, $2, $3, $4, NOW())
+      RETURNING ${PROFESSIONAL_FIELDS}
+    `
       const { rows: professionalRows } = await client.query(professionalInsert, [
         newUser.id,
         professional.professional_type_id,
@@ -72,10 +59,10 @@ export const ProfessionalModel = {
       let specialtiesResult = []
       if (Array.isArray(specialties) && specialties.length > 0) {
         const insertSpecialty = `
-          INSERT INTO professional_specialty (specialty_id, professional_id)
-          VALUES ($1, $2)
-          RETURNING id, specialty_id, professional_id
-        `
+        INSERT INTO professional_specialty (specialty_id, professional_id)
+        VALUES ($1, $2)
+        RETURNING id, specialty_id, professional_id
+      `
         for (const specialty_id of specialties) {
           const { rows } = await client.query(insertSpecialty, [specialty_id, newProfessional.id])
           specialtiesResult.push(rows[0])
@@ -155,7 +142,24 @@ export const ProfessionalModel = {
     }
   },
 
-  async updateProfessionalAndUser(professionalId, professionalUpdates, userUpdates, specialties) {
+  async updateProfessionalAndUser(
+    professionalId,
+    professionalUpdates = {},
+    userUpdates = {},
+    specialties = [],
+  ) {
+    // Validaciones iniciales
+    if (!professionalId) throw createError('INVALID_PROFESSIONAL_ID')
+    if (typeof professionalUpdates !== 'object' || Array.isArray(professionalUpdates)) {
+      throw createError('FIELDS_REQUIRED')
+    }
+    if (typeof userUpdates !== 'object' || Array.isArray(userUpdates)) {
+      throw createError('FIELDS_REQUIRED')
+    }
+    if (!Array.isArray(specialties)) {
+      throw createError('FIELDS_REQUIRED')
+    }
+
     const client = await db.connect()
     try {
       await client.query('BEGIN')
@@ -173,16 +177,15 @@ export const ProfessionalModel = {
         }
         values.push(professionalId)
         const { rows } = await client.query(
-          `UPDATE professional SET ${fields.join(', ')}, created_at = NOW() WHERE id = $${idx} RETURNING ${PROFESSIONAL_FIELDS}`,
+          `UPDATE professional SET ${fields.join(', ')}, updated_at = NOW() WHERE id = $${idx} RETURNING id, biography, created_at`,
           values,
         )
         updatedProfessional = rows[0]
       }
 
-      // Actualizar tabla users si hay datos
+      // Validar existencia del professional antes de actualizar user
       let updatedUser = null
       if (Object.keys(userUpdates).length > 0) {
-        // Obtener user_id desde professional
         const { rows } = await client.query('SELECT user_id FROM professional WHERE id = $1', [
           professionalId,
         ])
@@ -203,29 +206,19 @@ export const ProfessionalModel = {
           userValues,
         )
         updatedUser = userRows[0]
-
-        if (!updatedUser) {
-          const { rows: userRows2 } = await client.query(
-            'SELECT id, first_name, last_name, email, status FROM users WHERE id = $1',
-            [userId],
-          )
-          updatedUser = userRows2[0]
-        }
       }
 
       // Actualizar specialties si se envía el array
       let specialtiesResult = []
-      if (Array.isArray(specialties)) {
-        // Eliminar las actuales
+      if (specialties.length > 0) {
         await client.query('DELETE FROM professional_specialty WHERE professional_id = $1', [
           professionalId,
         ])
-        // Insertar las nuevas
         const insertSpecialty = `
-          INSERT INTO professional_specialty (specialty_id, professional_id)
-          VALUES ($1, $2)
-          RETURNING id, specialty_id, professional_id
-        `
+        INSERT INTO professional_specialty (specialty_id, professional_id)
+        VALUES ($1, $2)
+        RETURNING id, specialty_id, professional_id
+      `
         for (const specialty_id of specialties) {
           const { rows } = await client.query(insertSpecialty, [specialty_id, professionalId])
           specialtiesResult.push(rows[0])
@@ -234,42 +227,33 @@ export const ProfessionalModel = {
 
       await client.query('COMMIT')
 
-      // Si no se actualizó professional ni specialties, obtener los datos actuales
+      // Obtener datos actuales si no hubo actualizaciones
       if (!updatedProfessional) {
-        const { rows } = await db.query(
-          `SELECT ${PROFESSIONAL_FIELDS} FROM professional WHERE id = $1`,
+        const { rows } = await client.query(
+          'SELECT id, biography, created_at FROM professional WHERE id = $1',
           [professionalId],
         )
         updatedProfessional = rows[0]
       }
 
-      if (!Array.isArray(specialties)) {
-        // Obtener specialties actuales
-        const { rows } = await db.query(
-          `SELECT specialty_id FROM professional_specialty WHERE professional_id = $1`,
+      if (specialties.length === 0) {
+        const { rows } = await client.query(
+          'SELECT specialty_id FROM professional_specialty WHERE professional_id = $1',
           [professionalId],
         )
-        // Separar por rango
-        const specialtiesIds = rows.map((r) => r.specialty_id).filter((id) => id >= 1 && id <= 15)
-        const subspecialtiesIds = rows
-          .map((r) => r.specialty_id)
-          .filter((id) => id >= 16 && id <= 60)
-        specialtiesResult = { specialties: specialtiesIds, subspecialties: subspecialtiesIds }
-      } else {
-        // Si se actualizaron, ya tienes los arrays
-        const specialtiesIds = specialties.filter((id) => id >= 1 && id <= 15)
-        const subspecialtiesIds = specialties.filter((id) => id >= 16 && id <= 60)
-        specialtiesResult = { specialties: specialtiesIds, subspecialties: subspecialtiesIds }
+        specialtiesResult = rows.map((row) => row.specialty_id)
       }
 
       return {
         professional: updatedProfessional,
         user: updatedUser,
-        ...specialtiesResult,
+        specialties: specialtiesResult,
       }
     } catch (error) {
       await client.query('ROLLBACK')
-      if (error.status && error.message) throw error
+      // Si el error ya tiene un status y un nombre, propáralo directamente
+      if (error.status && error.name) throw error
+
       throw createError('INTERNAL_SERVER_ERROR')
     } finally {
       client.release()

@@ -1,6 +1,8 @@
 import { db } from '../database/connection.js'
 import { createError } from '../utils/errors.js'
+import { hashPassword, comparePassword } from '../utils/password.js'
 
+const validStatuses = ['Active', 'Inactive']
 // Crear usuario
 const createUser = async ({
   first_name,
@@ -24,6 +26,11 @@ const createUser = async ({
   const { rows: existing } = await db.query(emailQuery)
   if (existing[0]) throw createError('EMAIL_IN_USE')
 
+  if (!validStatuses.includes(status)) throw createError('INVALID_STATUS')
+
+  // Hashear contraseña
+  const hashedPassword = await hashPassword(password)
+
   // Insertar usuario
   const userQuery = {
     text: `INSERT INTO users (first_name, last_name, email, password, address, phone, birth_date, gender, role_id, status) 
@@ -33,7 +40,7 @@ const createUser = async ({
       first_name,
       last_name,
       email,
-      password,
+      hashedPassword,
       address,
       phone,
       birth_date,
@@ -68,6 +75,7 @@ const createUser = async ({
         additional_data?.years_of_experience || 0,
       ],
     }
+
     const { rows: professionalRows } = await db.query(professionalQuery)
     const professionalId = professionalRows[0].id
 
@@ -150,15 +158,39 @@ const deleteUser = async (id) => {
 }
 
 // Cambiar contraseña
-const changePassword = async (id, newPassword) => {
+const changePassword = async (id, currentPassword, newPassword) => {
+  const userQuery = {
+    text: `SELECT * FROM users WHERE id = $1`,
+    values: [id],
+  }
+  const { rows } = await db.query(userQuery)
+  if (!rows[0]) throw createError('USER_NOT_FOUND')
+
+  const user = rows[0]
+
+  const isMatch = await comparePassword(currentPassword, user.password)
+  if (!isMatch) throw createError('INVALID_PASSWORD')
+
+  const hashedPassword = await hashPassword(newPassword)
   const query = {
     text: `UPDATE users SET password = $2, updated_at = NOW() WHERE id = $1 RETURNING id, email`,
-    values: [id, newPassword],
+    values: [id, hashedPassword],
   }
-  const { rows } = await db.query(query)
+  const { rows: updatedRows } = await db.query(query)
+  return updatedRows[0]
+}
+// Cambiar status con validación
+const changeStatus = async (id, newStatus) => {
+  if (!validStatuses.includes(newStatus)) throw createError('INVALID_STATUS')
+
+  const updateQuery = {
+    text: `UPDATE users SET status = $2, updated_at = NOW() WHERE id = $1 RETURNING id, first_name, last_name, email, status`,
+    values: [id, newStatus],
+  }
+  const { rows } = await db.query(updateQuery)
+  if (!rows[0]) throw createError('USER_NOT_FOUND')
   return rows[0]
 }
-
 export const UserModel = {
   createUser,
   getAllUsers,
@@ -166,4 +198,5 @@ export const UserModel = {
   updateUser,
   deleteUser,
   changePassword,
+  changeStatus,
 }

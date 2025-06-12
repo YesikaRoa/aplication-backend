@@ -11,6 +11,27 @@ const createAppointment = async ({
   reason_for_visit,
   has_medical_record,
 }) => {
+  // Verificar si el profesional existe antes de intentar la inserción
+  const professionalExists = await db.query('SELECT id FROM professional WHERE id = $1', [
+    professional_id,
+  ])
+
+  if (!professionalExists.rows.length) {
+    throw createError('INVALID_PROFESSIONAL_ID')
+  }
+  // Verificar si el patient existe antes de intentar la inserción
+  const patientExists = await db.query('SELECT id FROM patient WHERE id = $1', [patient_id])
+
+  if (!patientExists.rows.length) {
+    throw createError('INVALID_PATIENT_ID')
+  }
+  // Verificar si la city existe antes de intentar la inserción
+  const cityExists = await db.query('SELECT id FROM city WHERE id = $1', [city_id])
+
+  if (!cityExists.rows.length) {
+    throw createError('INVALID_CITY_ID')
+  }
+  // Proceder con la inserción después de validar
   const query = {
     text: `INSERT INTO appointment 
            (scheduled_at, status, notes, patient_id, professional_id, city_id, reason_for_visit, has_medical_record) 
@@ -27,8 +48,10 @@ const createAppointment = async ({
       has_medical_record || false,
     ],
   }
+
   const { rows } = await db.query(query)
   if (!rows[0]) throw createError('INTERNAL_SERVER_ERROR')
+
   return rows[0]
 }
 
@@ -71,7 +94,7 @@ const updateAppointment = async (id, updates) => {
 
 const deleteAppointment = async (id) => {
   const query = {
-    text: 'DELETE FROM appointment WHERE id = $1 RETURNING id',
+    text: 'DELETE FROM appointment WHERE id = $1 RETURNING *',
     values: [id],
   }
   const { rows } = await db.query(query)

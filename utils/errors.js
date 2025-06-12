@@ -74,6 +74,26 @@ const errorList = {
     message: 'No autorizado para realizar esta acción',
     error: 'Unauthorized',
   },
+  INVALID_PROFESSIONAL_ID: {
+    status: 400,
+    message: 'El ID del profesional no está registrado',
+    error: 'BadRequest',
+  },
+  INVALID_PATIENT_ID: {
+    status: 400,
+    message: 'El ID del paciente no está registrado',
+    error: 'BadRequest',
+  },
+  INVALID_CITY_ID: {
+    status: 400,
+    message: 'El ID de la ciudad no está registrado',
+    error: 'BadRequest',
+  },
+  PASSWORDS_DO_NOT_MATCH: {
+    status: 400,
+    message: 'Las contraseñas no coinciden',
+    error: 'BadRequest',
+  },
   INTERNAL_SERVER_ERROR: {
     status: 500,
     message: 'Error interno del servidor',

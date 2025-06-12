@@ -1,5 +1,7 @@
 import { db } from '../database/connection.js'
 import { createError } from '../utils/errors.js'
+import { validateEmailExists, validatePassword } from '../utils/auth.validations.js'
+import { hashPassword } from '../utils/password.js'
 
 const createUser = async ({
   first_name,
@@ -72,9 +74,54 @@ const findUserByEmail = async (email) => {
   return rows[0] || null
 }
 
+const validateLogin = async (email, inputPassword) => {
+  // Validar existencia del email
+  const user = await validateEmailExists(email)
+
+  // Validar contraseña
+  await validatePassword(inputPassword, user.password)
+
+  return user // Retorna el usuario validado
+}
+
+const registerUser = async (
+  { email, password, professional_type_id, biography, years_of_experience, specialty_ids },
+  userDetails,
+) => {
+  // Validar existencia del email
+  const existingUser = await findUserByEmail(email)
+  if (existingUser) {
+    throw createError('EMAIL_IN_USE')
+  }
+
+  // Hashear la contraseña
+  const hashedPassword = await hashPassword(password)
+
+  // Crear usuario
+  const newUser = await createUser({ email, password: hashedPassword, ...userDetails })
+
+  // Crear profesional
+  const newProfessional = await createProfessional({
+    user_id: newUser.id,
+    professional_type_id,
+    biography,
+    years_of_experience,
+  })
+
+  // Asignar especialidades
+  if (specialty_ids && specialty_ids.length > 0) {
+    await createProfessionalSpecialty({
+      professional_id: newProfessional.id,
+      specialty_ids,
+    })
+  }
+
+  return { user: newUser, professional: newProfessional }
+}
+
 export const UserModel = {
   createUser,
   findUserByEmail,
-  createProfessional,
-  createProfessionalSpecialty,
+  validateLogin,
+  registerUser,
 }
