@@ -33,4 +33,21 @@ export const NotificationModel = {
       throw createError('INTERNAL_SERVER_ERROR')
     }
   },
+  async createNotification({ user_id, content, type }) {
+    try {
+      if (!user_id || !content || !type) {
+        throw createError('MISSING_REQUIRED_FIELDS')
+      }
+      const query = `
+        INSERT INTO notification (user_id, content, type, status, created_at, updated_at)
+        VALUES ($1, $2, $3, 'unread', NOW(), NOW())
+        RETURNING ${NOTIFICATION_FIELDS}
+      `
+      const { rows } = await db.query(query, [user_id, content, type])
+      return rows[0]
+    } catch (error) {
+      if (error.status && error.message) throw error
+      throw createError('INTERNAL_SERVER_ERROR')
+    }
+  },
 }

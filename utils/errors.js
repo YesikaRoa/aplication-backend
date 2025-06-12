@@ -94,6 +94,11 @@ const errorList = {
     message: 'Las contraseñas no coinciden',
     error: 'BadRequest',
   },
+  MISSING_REQUIRED_FIELDS: {
+    status: 400,
+    message: 'Faltan campos obligatorios',
+    error: 'BadRequest',
+  },
   INTERNAL_SERVER_ERROR: {
     status: 500,
     message: 'Error interno del servidor',

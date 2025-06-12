@@ -20,8 +20,28 @@ const deleteNotification = async (req, res, next) => {
     next(error)
   }
 }
+const createNotification = async (req, res, next) => {
+  try {
+    const { content, type } = req.body
+    const user_id = req.user.id // viene del token
+
+    const notification = await NotificationModel.createNotification({
+      user_id,
+      content,
+      type,
+    })
+
+    res.status(201).json({
+      message: 'Notificación creada con éxito',
+      notification,
+    })
+  } catch (error) {
+    next(error)
+  }
+}
 
 export const NotificationsController = {
   getAllNotifications,
   deleteNotification,
+  createNotification,
 }
