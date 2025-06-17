@@ -7,8 +7,9 @@ import appointmentsRoutes from './routes/appointments.route.js'
 import patientsRoutes from './routes/patients.route.js'
 import professionalRoutes from './routes/professionals.route.js'
 import notificationsRoutes from './routes/notifications.route.js'
-import { errorHandler } from './middlewares/errorHandler.js'
+import dashboardRoutes from './routes/dashboard.route.js'
 
+import { errorHandler } from './middlewares/errorHandler.js'
 const app = express()
 
 app.use(express.json())
@@ -26,6 +27,8 @@ app.use('/api/patients', patientsRoutes)
 app.use('/api/professionals', professionalRoutes)
 
 app.use('/api/notifications', notificationsRoutes)
+
+app.use('/api/dashboard', dashboardRoutes)
 
 app.use(errorHandler)
 
