@@ -8,6 +8,7 @@ import patientsRoutes from './routes/patients.route.js'
 import professionalRoutes from './routes/professionals.route.js'
 import notificationsRoutes from './routes/notifications.route.js'
 import dashboardRoutes from './routes/dashboard.route.js'
+import medicalRecord from './routes/medicalRecord.route.js'
 
 import { errorHandler } from './middlewares/errorHandler.js'
 const app = express()
@@ -29,6 +30,8 @@ app.use('/api/professionals', professionalRoutes)
 app.use('/api/notifications', notificationsRoutes)
 
 app.use('/api/dashboard', dashboardRoutes)
+
+app.use('/api/medical_record', medicalRecord)
 
 app.use(errorHandler)
 

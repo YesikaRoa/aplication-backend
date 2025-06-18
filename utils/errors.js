@@ -99,6 +99,21 @@ const errorList = {
     message: 'Faltan campos obligatorios',
     error: 'BadRequest',
   },
+  MEDICAL_RECORD_NOT_FOUND: {
+    status: 404,
+    message: 'Historial medico no encontrado',
+    error: 'NotFound',
+  },
+  PROFESSIONAL_NOT_FOUND: {
+    status: 404,
+    message: 'El profesional con ese ID no existe',
+    error: 'NotFound',
+  },
+  PATIENT_NOT_FOUND: {
+    status: 404,
+    message: 'El paciente con ese ID no existe',
+    error: 'NotFound',
+  },
   INTERNAL_SERVER_ERROR: {
     status: 500,
     message: 'Error interno del servidor',
