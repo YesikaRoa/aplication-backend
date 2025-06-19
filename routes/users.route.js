@@ -3,6 +3,7 @@ import { UsersController } from '../controllers/users.controller.js'
 import { validateSchema } from '../middlewares/validateSchema.js'
 import { authenticateToken } from '../middlewares/auth.js'
 import { validateUserId } from '../middlewares/validateParams.js'
+import { authorizeAdmin } from '../middlewares/authorizeAdmin.js'
 import {
   createUserSchema,
   updateUserSchema,
@@ -13,30 +14,38 @@ import {
 const router = Router()
 
 // Crear un usuario
-router.post('/', validateSchema(createUserSchema), UsersController.createUser)
+router.post(
+  '/',
+  authenticateToken,
+  authorizeAdmin,
+  validateSchema(createUserSchema),
+  UsersController.createUser,
+)
 
 // Obtener todos los usuarios
 router.get('/', authenticateToken, UsersController.getAllUser)
 
 // Obtener un usuario por ID
-router.get('/:id', authenticateToken, validateUserId, UsersController.getUserById)
+router.get('/:id', authenticateToken, authorizeAdmin, validateUserId, UsersController.getUserById)
 
 // Actualizar un usuario
 router.put(
   '/:id',
   authenticateToken,
+  authorizeAdmin,
   validateUserId,
   validateSchema(updateUserSchema),
   UsersController.updateUser,
 )
 
 // Eliminar un usuario
-router.delete('/:id', authenticateToken, validateUserId, UsersController.deleteUser)
+router.delete('/:id', authenticateToken, authorizeAdmin, validateUserId, UsersController.deleteUser)
 
 // Cambiar la contraseña
 router.put(
   '/password/:id',
   authenticateToken,
+  authorizeAdmin,
   validateUserId,
   validateSchema(changePasswordSchema),
   UsersController.changePassword,
@@ -46,6 +55,7 @@ router.put(
 router.put(
   '/status/:id',
   authenticateToken,
+  authorizeAdmin,
   validateUserId,
   validateSchema(changeStatusSchema),
   UsersController.changeStatus,

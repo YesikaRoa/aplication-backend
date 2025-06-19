@@ -114,6 +114,11 @@ const errorList = {
     message: 'El paciente con ese ID no existe',
     error: 'NotFound',
   },
+  ACCESS_DENIED: {
+    status: 403,
+    message: 'Access denied: Admins only',
+    error: 'Forbidden',
+  },
   INTERNAL_SERVER_ERROR: {
     status: 500,
     message: 'Error interno del servidor',
