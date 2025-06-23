@@ -1,9 +1,11 @@
 import { UserModel } from '../models/auth.model.js'
 import jwt from 'jsonwebtoken'
+import cloudinary from '../config/cloudinary.js'
 
 const registerUser = async (req, res, next) => {
   try {
     const {
+      avatar,
       email,
       password,
       professional_type_id,
@@ -13,11 +15,21 @@ const registerUser = async (req, res, next) => {
       ...userDetails
     } = req.body
 
+    // Subir el avatar a Cloudinary
+    let avatarUrl = null
+    if (avatar) {
+      const uploadResponse = await cloudinary.uploader.upload(avatar, {
+        folder: 'dsuocyzih',
+      })
+      avatarUrl = uploadResponse.secure_url // URL pública de la imagen
+    }
+
     // Registrar usuario
     const { user, professional } = await UserModel.registerUser(
       {
         email,
         password,
+        avatar: avatarUrl,
         professional_type_id,
         biography,
         years_of_experience,

@@ -4,6 +4,7 @@ import { validateSchema } from '../middlewares/validateSchema.js'
 import { authenticateToken } from '../middlewares/auth.js'
 import { validateUserId } from '../middlewares/validateParams.js'
 import { authorizeAdmin } from '../middlewares/authorizeAdmin.js'
+
 import {
   createUserSchema,
   updateUserSchema,

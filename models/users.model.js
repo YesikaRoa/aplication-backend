@@ -1,6 +1,7 @@
 import { db } from '../database/connection.js'
 import { createError } from '../utils/errors.js'
 import { hashPassword, comparePassword } from '../utils/password.js'
+import cloudinary from '../config/cloudinary.js'
 
 const validStatuses = ['Active', 'Inactive']
 // Crear usuario
@@ -15,6 +16,7 @@ const createUser = async ({
   gender,
   role_id,
   status,
+  avatar, // Avatar en Base64
   additional_data,
   specialties = [], // Ahora specialties es el único arreglo con todo
 }) => {
@@ -31,10 +33,19 @@ const createUser = async ({
   // Hashear contraseña
   const hashedPassword = await hashPassword(password)
 
+  // Subir avatar a Cloudinary si existe
+  let avatarUrl = null
+  if (avatar) {
+    const uploadResponse = await cloudinary.uploader.upload(avatar, {
+      folder: 'dsuocyzih',
+    })
+    avatarUrl = uploadResponse.secure_url // URL pública de la imagen
+  }
+
   // Insertar usuario
   const userQuery = {
-    text: `INSERT INTO users (first_name, last_name, email, password, address, phone, birth_date, gender, role_id, status) 
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
+    text: `INSERT INTO users (first_name, last_name, email, password, address, phone, birth_date, gender, role_id, status, avatar) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) 
            RETURNING id, email, first_name, last_name`,
     values: [
       first_name,
@@ -47,6 +58,7 @@ const createUser = async ({
       gender,
       role_id,
       status,
+      avatarUrl, // Guardar la URL subida a Cloudinary
     ],
   }
   const { rows: userRows } = await db.query(userQuery)
@@ -62,8 +74,6 @@ const createUser = async ({
     await db.query(patientQuery)
   } else if (role_id === 3) {
     // Professional
-
-    // Primero insertamos datos en professional
     const professionalQuery = {
       text: `INSERT INTO professional (user_id, professional_type_id, biography, years_of_experience) 
              VALUES ($1, $2, $3, $4) 
@@ -75,7 +85,6 @@ const createUser = async ({
         additional_data?.years_of_experience || 0,
       ],
     }
-
     const { rows: professionalRows } = await db.query(professionalQuery)
     const professionalId = professionalRows[0].id
 
@@ -148,13 +157,33 @@ const updateUser = async (id, updates) => {
 
 // Eliminar usuario
 const deleteUser = async (id) => {
-  const query = {
-    text: `DELETE  from users WHERE id = $1 RETURNING id`,
+  // Consultar usuario por ID antes de eliminar
+  const userQuery = {
+    text: `SELECT avatar FROM users WHERE id = $1`,
     values: [id],
   }
-  const { rows } = await db.query(query)
+  const { rows } = await db.query(userQuery)
+
   if (!rows[0]) throw createError('USER_NOT_FOUND')
-  return rows[0]
+
+  const { avatar } = rows[0] // Obtener URL del avatar
+
+  // Eliminar imagen de Cloudinary si existe
+  if (avatar) {
+    const publicId = avatar.split('/').slice(-2).join('/').split('.')[0] // Extraer public_id
+    await cloudinary.uploader.destroy(publicId) // Eliminar imagen
+  }
+
+  // Eliminar usuario de la base de datos
+  const deleteQuery = {
+    text: `DELETE FROM users WHERE id = $1 RETURNING id`,
+    values: [id],
+  }
+  const { rows: deletedRows } = await db.query(deleteQuery)
+
+  if (!deletedRows[0]) throw createError('USER_NOT_FOUND')
+
+  return deletedRows[0]
 }
 
 // Cambiar contraseña

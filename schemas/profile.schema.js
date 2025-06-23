@@ -14,6 +14,7 @@ export const updateProfileSchema = z.object({
       birth_date: z.string().optional(),
       gender: z.enum(['F', 'M']).optional(),
       status: z.enum(['Active', 'Inactive']).optional(),
+      avatar: z.string().url('Avatar must be a valid URL').optional(),
     })
     .optional(),
   professionalData: z

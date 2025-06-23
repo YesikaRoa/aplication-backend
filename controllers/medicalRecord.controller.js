@@ -21,13 +21,14 @@ const getMedicalRecordById = async (req, res, next) => {
 
 const createMedicalRecord = async (req, res, next) => {
   try {
-    const { patient_id, professional_id, appointment_id, general_notes } = req.body
+    const { patient_id, professional_id, appointment_id, general_notes, image } = req.body
 
     const newMedicalRecord = await MedicalRecordModel.createMedicalRecord({
       patient_id,
       professional_id,
       appointment_id,
       general_notes,
+      image, // Imagen enviada desde el cliente
     })
 
     res.status(201).json({ message: 'Registro médico creado', medicalRecord: newMedicalRecord })

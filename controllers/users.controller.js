@@ -15,12 +15,13 @@ const createUser = async (req, res, next) => {
       status,
       professional_data,
       patient_data,
+      avatar, // Avatar en Base64 desde el body
     } = req.body
 
     // Si profesional, extraer specialties desde professional_data
     const specialties = professional_data?.specialties || []
 
-    // Crear usuario y profesional (como en tu modelo)
+    // Crear usuario
     const newUser = await UserModel.createUser({
       first_name,
       last_name,
@@ -32,9 +33,11 @@ const createUser = async (req, res, next) => {
       gender,
       role_id,
       status,
+      avatar, // Pasar el avatar como Base64 directamente al modelo
       additional_data: role_id === 2 ? patient_data : professional_data,
-      specialties, // ahora sí viene correcto
+      specialties,
     })
+
     res.status(201).json({ message: 'Usuario creado', user: newUser })
   } catch (error) {
     next(error)
