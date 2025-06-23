@@ -41,6 +41,7 @@ export const createUserSchema = z
     role_id: z.number({ required_error: 'Role ID is required' }),
     status: z.enum(['Active', 'Inactive'], 'Status must be either Active or Inactive'),
 
+    avatar: z.string().url('Avatar must be a valid URL').optional(),
     // Los datos adicionales son opcionales y dependerán del role_id
     patient_data: patientDataSchema.optional(),
     professional_data: professionalDataSchema.optional(),

@@ -14,10 +14,11 @@ const createUser = async ({
   gender,
   role_id,
   status,
+  avatar,
 }) => {
   const query = {
-    text: `INSERT INTO users (first_name, last_name, email, password, address, phone, birth_date, gender, role_id, status) 
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
+    text: `INSERT INTO users (first_name, last_name, email, password, address, phone, birth_date, gender, role_id, status,avatar) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) 
            RETURNING id, email, first_name, last_name`,
     values: [
       first_name,
@@ -30,6 +31,7 @@ const createUser = async ({
       gender,
       role_id,
       status,
+      avatar,
     ],
   }
   const { rows } = await db.query(query)
@@ -85,7 +87,15 @@ const validateLogin = async (email, inputPassword) => {
 }
 
 const registerUser = async (
-  { email, password, professional_type_id, biography, years_of_experience, specialty_ids },
+  {
+    email,
+    password,
+    avatar: avatarUrl,
+    professional_type_id,
+    biography,
+    years_of_experience,
+    specialty_ids,
+  },
   userDetails,
 ) => {
   // Validar existencia del email
@@ -98,7 +108,12 @@ const registerUser = async (
   const hashedPassword = await hashPassword(password)
 
   // Crear usuario
-  const newUser = await createUser({ email, password: hashedPassword, ...userDetails })
+  const newUser = await createUser({
+    email,
+    password: hashedPassword,
+    avatar: avatarUrl,
+    ...userDetails,
+  })
 
   // Crear profesional
   const newProfessional = await createProfessional({

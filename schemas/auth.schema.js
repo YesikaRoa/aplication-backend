@@ -16,6 +16,10 @@ export const registerUserSchema = z.object({
   gender: z.enum(['F', 'M'], 'Gender must be either F or M'),
   role_id: z.number(),
   status: z.enum(['Active', 'Inactive']),
+  avatar: z
+    .string()
+    .regex(/^data:image\/[a-zA-Z]+;base64,/, 'Avatar must be a valid Base64 string')
+    .optional(),
   professional_type_id: z.number(),
   biography: z.string(),
   years_of_experience: z.number().min(0, 'Years of experience must be a positive number'),
