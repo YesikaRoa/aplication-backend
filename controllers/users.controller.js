@@ -119,6 +119,31 @@ const changeStatus = async (req, res, next) => {
   }
 }
 
+const getAllProfessionalTypes = async (req, res, next) => {
+  try {
+    const professionalTypes = await UserModel.getAllProfessionalTypes()
+    res.status(200).json(professionalTypes)
+  } catch (error) {
+    next(error)
+  }
+}
+
+const getAllRoles = async (req, res, next) => {
+  try {
+    const roles = await UserModel.getAllRoles()
+    res.status(200).json(roles)
+  } catch (error) {
+    next(error)
+  }
+}
+const getSpecialties = async (req, res, next) => {
+  try {
+    const specialties = await UserModel.getSpecialtiesByType()
+    return res.status(200).json(specialties)
+  } catch (error) {
+    next(error)
+  }
+}
 export const UsersController = {
   createUser,
   getAllUser,
@@ -127,4 +152,7 @@ export const UsersController = {
   deleteUser,
   changePassword,
   changeStatus,
+  getAllProfessionalTypes,
+  getAllRoles,
+  getSpecialties,
 }

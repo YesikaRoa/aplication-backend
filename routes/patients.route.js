@@ -3,7 +3,11 @@ import { PatientsController } from '../controllers/patients.controller.js'
 import { validateSchema } from '../middlewares/validateSchema.js'
 import { authenticateToken } from '../middlewares/auth.js'
 import { validateUserId } from '../middlewares/validateParams.js'
-import { createPatientWithUserSchema, updatePatientSchema } from '../schemas/patients.schema.js'
+import {
+  createPatientWithUserSchema,
+  updatePatientSchema,
+  changeStatusSchema,
+} from '../schemas/patients.schema.js'
 
 const router = Router()
 
@@ -26,7 +30,13 @@ router.put(
   validateSchema(updatePatientSchema),
   PatientsController.updatePatient,
 )
-
+router.put(
+  '/status/:id',
+  authenticateToken,
+  validateUserId,
+  validateSchema(changeStatusSchema),
+  PatientsController.changeStatus,
+)
 router.delete('/:id', authenticateToken, validateUserId, PatientsController.deletePatient)
 
 export default router

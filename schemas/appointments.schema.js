@@ -20,6 +20,7 @@ export const updateAppointmentSchema = z
     notes: z.string().optional(),
     reason_for_visit: z.string().min(1).max(255).optional(),
     has_medical_record: z.boolean().optional(),
+    city_id: z.number().optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: 'At least one field must be provided for update',

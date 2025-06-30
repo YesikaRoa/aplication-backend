@@ -9,7 +9,7 @@ export const updateProfileSchema = z.object({
       address: z.string().max(50).optional(),
       phone: z
         .string()
-        .regex(/^\d{12}$/)
+        .regex(/^\d{11}$/)
         .optional(),
       birth_date: z.string().optional(),
       gender: z.enum(['F', 'M']).optional(),

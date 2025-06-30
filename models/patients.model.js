@@ -1,5 +1,6 @@
 import { db } from '../database/connection.js'
 import { createError } from '../utils/errors.js'
+import cloudinary from '../config/cloudinary.js'
 
 const PATIENT_FIELDS = `id, user_id, medical_data, created_at, updated_at`
 
@@ -9,6 +10,15 @@ export const PatientModel = {
     try {
       await client.query('BEGIN')
 
+      let avatarUrl = null
+      if (user.avatar) {
+        // Verifica que el avatar exista
+
+        const uploadResponse = await cloudinary.uploader.upload(user.avatar, {
+          folder: 'dsuocyzih',
+        })
+        avatarUrl = uploadResponse.secure_url
+      }
       // Validaciones
       if (!user.first_name || !user.last_name || !user.email) {
         throw createError('MISSING_REQUIRED_FIELDS')
@@ -25,10 +35,11 @@ export const PatientModel = {
         user.gender || null,
         user.role_id || null,
         user.status || 'active',
+        avatarUrl,
       ]
       const userInsert = `
-      INSERT INTO "users" (first_name, last_name, email, password, address, phone, birth_date, gender, role_id, status, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+      INSERT INTO "users" (first_name, last_name, email, password, address, phone, birth_date, gender, role_id, status, avatar, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,$11, NOW(), NOW())
       RETURNING id, first_name, last_name, email, status
     `
       const { rows: userRows } = await client.query(userInsert, userValues)
@@ -55,6 +66,7 @@ export const PatientModel = {
           last_name: newUser.last_name,
           email: newUser.email,
           status: newUser.status,
+          avatar: newUser.avatarUrl,
         },
         patient: {
           id: newPatient.id,
@@ -72,11 +84,64 @@ export const PatientModel = {
       client.release()
     }
   },
+  async getAllPatients() {
+    try {
+      const PATIENTS_FIELDS = `
+      a.id,
+      a.medical_data,
+      a.created_at,
+      a.updated_at,
+      b.first_name,
+      b.last_name,
+      b.avatar,
+      b.email,
+      b.status,
+      b.address,
+      b.birth_date,
+      b.phone
+    `
+      const query = `
+      SELECT ${PATIENTS_FIELDS}
+      FROM patient a
+      INNER JOIN users b ON a.user_id = b.id
+    `
 
+      const { rows } = await db.query(query)
+      return rows
+    } catch (error) {
+      throw createError('INTERNAL_SERVER_ERROR')
+    }
+  },
   async getPatientById(id) {
     try {
       if (!id) throw createError('INVALID_ID')
-      const { rows } = await db.query(`SELECT ${PATIENT_FIELDS} FROM patient WHERE id = $1`, [id])
+      const { rows } = await db.query(
+        `
+      SELECT 
+        b.first_name, 
+        b.last_name, 
+        b.email, 
+        b.phone, 
+        b.status, 
+        b.birth_date, 
+        b.address,
+        b.gender,
+        a.id,
+        a.user_id, 
+        a.medical_data, 
+        a.created_at, 
+        a.updated_at 
+      FROM 
+        patient a 
+      INNER JOIN 
+        users b 
+      ON 
+        b.id = a.user_id 
+      WHERE 
+        a.id = $1
+      `,
+        [id],
+      )
       if (!rows[0]) throw createError('RECORD_NOT_FOUND')
       return rows[0]
     } catch (error) {
@@ -153,5 +218,53 @@ export const PatientModel = {
     } finally {
       client.release()
     }
+  },
+
+  async changeStatus(patientId, newStatus) {
+    // Validar si el nuevo estado es permitido
+    const validStatuses = ['Active', 'Inactive']
+    if (!validStatuses.includes(newStatus)) {
+      throw createError('INVALID_STATUS')
+    }
+
+    // Paso 1: Buscar el user_id usando el professionalId
+    const findPatientQuery = {
+      text: `
+      SELECT user_id 
+      FROM patient 
+      WHERE id = $1
+    `,
+      values: [patientId],
+    }
+
+    const patientResult = await db.query(findPatientQuery)
+
+    // Verificar si se encontró el profesional
+    if (patientResult.rows.length === 0) {
+      throw createError('USER_NOT_FOUND')
+    }
+
+    const userId = patientResult.rows[0].user_id
+
+    // Paso 2: Actualizar el estado en la tabla users usando el user_id
+    const updateUserQuery = {
+      text: `
+      UPDATE users 
+      SET status = $2, updated_at = NOW() 
+      WHERE id = $1 
+      RETURNING id, status
+    `,
+      values: [userId, newStatus],
+    }
+
+    const userResult = await db.query(updateUserQuery)
+
+    // Verificar si se actualizó el usuario
+    if (userResult.rows.length === 0) {
+      throw createError('USER_NOT_FOUND')
+    }
+
+    // Retornar el resultado de la actualización
+    return userResult.rows[0]
   },
 }

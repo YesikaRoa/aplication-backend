@@ -15,6 +15,9 @@ const router = Router()
 router.post('/', validateSchema(createAppointmentSchema), AppointmentsController.createAppointment)
 
 router.get('/', authenticateToken, AppointmentsController.getAllAppointments)
+router.get('/cities', AppointmentsController.getCities)
+router.get('/patients', AppointmentsController.getPatients)
+router.get('/professionals', AppointmentsController.getProfessionals)
 
 router.get('/:id', authenticateToken, validateUserId, AppointmentsController.getAppointmentById)
 

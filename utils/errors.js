@@ -119,6 +119,11 @@ const errorList = {
     message: 'Access denied: Admins only',
     error: 'Forbidden',
   },
+  AVATAR_UPLOAD_FAILED: {
+    status: 403,
+    message: 'Avatar fallo',
+    error: 'Forbidden',
+  },
   INTERNAL_SERVER_ERROR: {
     status: 500,
     message: 'Error interno del servidor',
@@ -132,6 +137,7 @@ export function createError(code) {
     message = 'Error interno',
     error = 'InternalServerError',
   } = errorList[code] || {}
+
   const err = new Error(message)
   err.status = status
   err.name = error

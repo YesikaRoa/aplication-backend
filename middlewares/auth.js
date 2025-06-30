@@ -21,3 +21,25 @@ export const authenticateToken = (req, res, next) => {
     next()
   })
 }
+// Endpoint para renovar el token
+export const renewToken = (req, res, next) => {
+  const authHeader = req.headers.authorization
+  const token = authHeader && authHeader.split(' ')[1]
+
+  if (!token) {
+    return next(createError('NO_TOKEN_PROVIDED'))
+  }
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+    if (err) {
+      return next(createError('INVALID_TOKEN'))
+    }
+
+    // Generar un nuevo token
+    const newToken = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, {
+      expiresIn: '1h',
+    })
+
+    res.json({ token: newToken })
+  })
+}

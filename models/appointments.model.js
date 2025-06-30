@@ -57,17 +57,63 @@ const createAppointment = async ({
 
 const getAllAppointments = async () => {
   const query = {
-    text: 'SELECT * FROM appointment ORDER BY scheduled_at DESC',
+    text: `
+      SELECT 
+        a.id,
+        a.scheduled_at,
+        a.status,
+        a.notes,
+        a.patient_id,
+        (u1.first_name || ' ' || u1.last_name) AS patient_full_name,
+        a.professional_id,
+        (u2.first_name || ' ' || u2.last_name) AS professional_full_name,
+        a.has_medical_record,
+        a.city_id,
+        c.name,
+        a.reason_for_visit,
+        a.created_at,
+        a.updated_at
+      FROM appointment a
+      LEFT JOIN patient p ON a.patient_id = p.id
+      LEFT JOIN users u1 ON p.user_id = u1.id
+      LEFT JOIN professional pr ON a.professional_id = pr.id
+      LEFT JOIN users u2 ON pr.user_id = u2.id
+      LEFT JOIN city c ON c.id = a.city_id
+      ORDER BY a.created_at DESC 
+    `,
   }
+
   const { rows } = await db.query(query)
   return rows
 }
 
 const getAppointmentById = async (id) => {
   const query = {
-    text: 'SELECT * FROM appointment WHERE id = $1',
+    text: `
+      SELECT 
+        a.id,
+        a.scheduled_at,
+        a.status,
+        a.notes,
+        a.reason_for_visit,
+        a.has_medical_record,
+        a.created_at,
+        a.updated_at,
+        c.name AS city_name,
+        c.id AS city_id,
+        pu.first_name || ' ' || pu.last_name AS patient_full_name,
+        pru.first_name || ' ' || pru.last_name AS professional_full_name
+      FROM appointment a
+      INNER JOIN city c ON a.city_id = c.id
+      INNER JOIN patient p ON a.patient_id = p.id
+      INNER JOIN users pu ON p.user_id = pu.id
+      INNER JOIN professional pr ON a.professional_id = pr.id
+      INNER JOIN users pru ON pr.user_id = pru.id
+      WHERE a.id = $1
+    `,
     values: [id],
   }
+
   const { rows } = await db.query(query)
   if (!rows[0]) throw createError('RECORD_NOT_FOUND')
   return rows[0]
@@ -93,13 +139,84 @@ const updateAppointment = async (id, updates) => {
 }
 
 const deleteAppointment = async (id) => {
-  const query = {
-    text: 'DELETE FROM appointment WHERE id = $1 RETURNING *',
-    values: [id],
+  try {
+    // Primero, elimina el registro relacionado en medical_record
+    const deleteMedicalRecordQuery = {
+      text: 'DELETE FROM medical_record WHERE appointment_id = $1',
+      values: [id],
+    }
+    await db.query(deleteMedicalRecordQuery)
+
+    // Luego, elimina el registro de appointment
+    const deleteAppointmentQuery = {
+      text: 'DELETE FROM appointment WHERE id = $1 RETURNING *',
+      values: [id],
+    }
+    const { rows } = await db.query(deleteAppointmentQuery)
+
+    if (!rows[0]) throw createError('RECORD_NOT_FOUND')
+
+    return rows[0]
+  } catch (error) {
+    throw createError(`Error deleting appointment: ${error.message}`)
   }
-  const { rows } = await db.query(query)
-  if (!rows[0]) throw createError('RECORD_NOT_FOUND')
-  return rows[0]
+}
+
+const getCities = async (search = '', limit = 5) => {
+  const query = `
+    SELECT 
+      city.id,
+      city.name,
+      state.name AS state_name
+    FROM 
+      city
+    LEFT JOIN 
+      state ON city.state_id = state.id
+    WHERE 
+      city.name ILIKE $1
+    LIMIT $2
+  `
+  const { rows } = await db.query(query, [`%${search}%`, parseInt(limit)])
+  return rows
+}
+
+const getPatients = async (search = '', limit = 5) => {
+  const query = `
+    SELECT 
+      patient.id,
+      users.first_name,
+      users.last_name
+    FROM 
+      patient
+    JOIN 
+      users ON patient.user_id = users.id
+    WHERE 
+      users.first_name ILIKE $1 OR users.last_name ILIKE $1
+    LIMIT $2
+  `
+  const { rows } = await db.query(query, [`%${search}%`, parseInt(limit)])
+  return rows
+}
+
+const getProfessionals = async (search = '', limit = 5) => {
+  const query = `
+    SELECT 
+      professional.id,
+      users.first_name,
+      users.last_name,
+      professional_type.name AS professional_type
+    FROM 
+      professional
+    JOIN 
+      users ON professional.user_id = users.id
+    LEFT JOIN 
+      professional_type ON professional.professional_type_id = professional_type.id
+    WHERE 
+      users.first_name ILIKE $1 OR users.last_name ILIKE $1
+    LIMIT $2
+  `
+  const { rows } = await db.query(query, [`%${search}%`, parseInt(limit)])
+  return rows
 }
 
 export const AppointmentsModel = {
@@ -108,4 +225,7 @@ export const AppointmentsModel = {
   getAppointmentById,
   updateAppointment,
   deleteAppointment,
+  getCities,
+  getPatients,
+  getProfessionals,
 }

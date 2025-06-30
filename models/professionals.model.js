@@ -1,14 +1,7 @@
 import { db } from '../database/connection.js'
 import { createError } from '../utils/errors.js'
 import { hashPassword } from '../utils/password.js'
-const PROFESSIONAL_FIELDS = `
-  id,
-  user_id,
-  professional_type_id,
-  biography,
-  years_of_experience,
-  created_at
-`
+import cloudinary from '../config/cloudinary.js'
 
 export const ProfessionalModel = {
   async createProfessionalWithUser({ user, professional, specialties }) {
@@ -16,26 +9,39 @@ export const ProfessionalModel = {
     try {
       await client.query('BEGIN')
 
+      let avatarUrl = null
+      if (user.avatar) {
+        // Verifica que el avatar exista
+
+        const uploadResponse = await cloudinary.uploader.upload(user.avatar, {
+          folder: 'dsuocyzih',
+        })
+        avatarUrl = uploadResponse.secure_url
+      }
+
       // Hashear el password del usuario
+
       const hashedPassword = await hashPassword(user.password)
+
       const userValues = [
         user.first_name,
         user.last_name,
         user.email,
-        hashedPassword, // Usar el password hasheado
+        hashedPassword,
         user.address,
         user.phone,
         user.birth_date,
         user.gender,
         user.role_id,
         user.status,
+        avatarUrl,
       ]
 
       // Insertar usuario
       const userInsert = `
       INSERT INTO "users" 
-      (first_name, last_name, email, password, address, phone, birth_date, gender, role_id, status, created_at, updated_at)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW(),NOW())
+      (first_name, last_name, email, password, address, phone, birth_date, gender, role_id, status, avatar, created_at, updated_at)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, $11,NOW(),NOW())
       RETURNING id, first_name, last_name, email, status
     `
       const { rows: userRows } = await client.query(userInsert, userValues)
@@ -45,7 +51,7 @@ export const ProfessionalModel = {
       const professionalInsert = `
       INSERT INTO professional (user_id, professional_type_id, biography, years_of_experience, created_at)
       VALUES ($1, $2, $3, $4, NOW())
-      RETURNING ${PROFESSIONAL_FIELDS}
+      RETURNING id, user_id, professional_type_id, biography, years_of_experience, created_at
     `
       const { rows: professionalRows } = await client.query(professionalInsert, [
         newUser.id,
@@ -93,7 +99,30 @@ export const ProfessionalModel = {
 
   async getAllProfessionals() {
     try {
-      const { rows } = await db.query(`SELECT ${PROFESSIONAL_FIELDS} FROM professional`)
+      const PROFESSIONAL_FIELDS = `
+      professional.id AS professional_id,
+      professional.user_id,
+      professional.professional_type_id,
+      professional.biography,
+      professional.years_of_experience,
+      professional.created_at,
+      users.first_name,
+      users.last_name,
+      users.avatar,
+      users.email,
+      users.status,
+      users.address,
+      users.birth_date,
+      users.phone
+    `
+
+      const query = `
+      SELECT ${PROFESSIONAL_FIELDS}
+      FROM professional
+      INNER JOIN users ON professional.user_id = users.id
+    `
+
+      const { rows } = await db.query(query)
       return rows
     } catch (error) {
       throw createError('INTERNAL_SERVER_ERROR')
@@ -104,11 +133,13 @@ export const ProfessionalModel = {
     try {
       const query = `
         SELECT 
-          p.id AS professional_id,
+          p.id,
           p.user_id,
           p.professional_type_id,
           p.biography,
           p.years_of_experience,
+          p.created_at,
+          p.updated_at,
           u.first_name,
           u.last_name,
           u.email,
@@ -116,6 +147,7 @@ export const ProfessionalModel = {
           u.phone,
           u.birth_date,
           u.gender,
+          u.status,
           pt.name AS professional_type,
           COALESCE(
             ARRAY_AGG(DISTINCT CASE WHEN s.id BETWEEN 1 AND 15 THEN s.name END) FILTER (WHERE s.id BETWEEN 1 AND 15),
@@ -289,5 +321,53 @@ export const ProfessionalModel = {
     } finally {
       client.release()
     }
+  },
+
+  async changeStatus(professionalId, newStatus) {
+    // Validar si el nuevo estado es permitido
+    const validStatuses = ['Active', 'Inactive']
+    if (!validStatuses.includes(newStatus)) {
+      throw createError('INVALID_STATUS')
+    }
+
+    // Paso 1: Buscar el user_id usando el professionalId
+    const findProfessionalQuery = {
+      text: `
+      SELECT user_id 
+      FROM professional 
+      WHERE id = $1
+    `,
+      values: [professionalId],
+    }
+
+    const professionalResult = await db.query(findProfessionalQuery)
+
+    // Verificar si se encontró el profesional
+    if (professionalResult.rows.length === 0) {
+      throw createError('USER_NOT_FOUND')
+    }
+
+    const userId = professionalResult.rows[0].user_id
+
+    // Paso 2: Actualizar el estado en la tabla users usando el user_id
+    const updateUserQuery = {
+      text: `
+      UPDATE users 
+      SET status = $2, updated_at = NOW() 
+      WHERE id = $1 
+      RETURNING id, status
+    `,
+      values: [userId, newStatus],
+    }
+
+    const userResult = await db.query(updateUserQuery)
+
+    // Verificar si se actualizó el usuario
+    if (userResult.rows.length === 0) {
+      throw createError('USER_NOT_FOUND')
+    }
+
+    // Retornar el resultado de la actualización
+    return userResult.rows[0]
   },
 }

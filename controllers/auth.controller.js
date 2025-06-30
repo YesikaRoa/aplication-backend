@@ -66,7 +66,42 @@ const loginUser = async (req, res, next) => {
   }
 }
 
+const getSpecialties = async (req, res, next) => {
+  try {
+    const specialties = await UserModel.getSpecialtiesByType()
+    return res.status(200).json(specialties)
+  } catch (error) {
+    next(error)
+  }
+}
+
+const getProfessionalTypes = async (req, res, next) => {
+  try {
+    const types = await UserModel.getProfessionalTypes()
+    return res.status(200).json(types)
+  } catch (error) {
+    next(error)
+  }
+}
+
+const sendTemporaryPassword = async (req, res, next) => {
+  console.log('Llegó petición a send-temporary-password:', req.body)
+  try {
+    const { email } = req.body
+
+    // Usar modelo para generar y actualizar contraseña
+    const { user, tempPassword } = await UserModel.sendTemporaryPassword(email)
+
+    // Enviar usuario y tempPassword al frontend para que envíe el correo
+    res.status(200).json({ user, tempPassword })
+  } catch (error) {
+    next(error)
+  }
+}
 export const UserController = {
   registerUser,
   loginUser,
+  getSpecialties,
+  getProfessionalTypes,
+  sendTemporaryPassword,
 }

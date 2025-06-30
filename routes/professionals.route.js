@@ -6,6 +6,7 @@ import { validateUserId } from '../middlewares/validateParams.js'
 import {
   createProfessionalWithUserSchema,
   updateProfessionalSchema,
+  changeStatusSchema,
 } from '../schemas/professionals.schema.js'
 
 const router = Router()
@@ -28,7 +29,13 @@ router.put(
   validateSchema(updateProfessionalSchema),
   ProfessionalsController.updateProfessional,
 )
-
+router.put(
+  '/status/:id',
+  authenticateToken,
+  validateUserId,
+  validateSchema(changeStatusSchema),
+  ProfessionalsController.changeStatus,
+)
 router.delete('/:id', authenticateToken, validateUserId, ProfessionalsController.deleteProfessional)
 
 export default router
