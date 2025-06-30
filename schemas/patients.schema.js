@@ -9,12 +9,16 @@ const userSchema = z.object({
   address: z.string().max(50).optional(),
   phone: z
     .string()
-    .regex(/^\d{12}$/, 'Phone must be a valid 12-digit number')
+    .regex(/^\d{11}$/, 'Phone must be a valid 11-digit number')
     .optional(),
   birth_date: z.string().or(z.date()).optional(),
   gender: z.enum(['F', 'M']).optional(),
   role_id: z.number(),
   status: z.enum(['Active', 'Inactive']),
+  avatar: z
+    .string()
+    .regex(/^data:image\/[a-zA-Z]+;base64,/, 'Avatar must be a valid Base64 string')
+    .optional(),
 })
 
 // Esquema para crear paciente con usuario
@@ -32,9 +36,15 @@ export const updatePatientSchema = z
     address: z.string().max(50).optional(),
     phone: z
       .string()
-      .regex(/^\d{12}$/)
+      .regex(/^\d{11}$/)
       .optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: 'At least one field must be provided for update',
   })
+
+export const changeStatusSchema = z.object({
+  newStatus: z.enum(['Active', 'Inactive'], {
+    required_error: 'New status must be either Active or Inactive',
+  }),
+})

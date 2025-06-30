@@ -72,10 +72,25 @@ const deleteProfessional = async (req, res, next) => {
   }
 }
 
+const changeStatus = async (req, res, next) => {
+  try {
+    const { id } = req.params
+    const { newStatus } = req.body
+    const updatedUser = await ProfessionalModel.changeStatus(id, newStatus)
+
+    res.status(200).json({
+      message: 'Estado actualizado con éxito',
+      user: updatedUser,
+    })
+  } catch (error) {
+    next(error)
+  }
+}
 export const ProfessionalsController = {
   createProfessionalWithUser,
   getAllProfessionals,
   getProfessionalById,
   updateProfessional,
   deleteProfessional,
+  changeStatus,
 }

@@ -220,6 +220,71 @@ const changeStatus = async (id, newStatus) => {
   if (!rows[0]) throw createError('USER_NOT_FOUND')
   return rows[0]
 }
+
+// Obtener todos los tipos profesionales
+const getAllProfessionalTypes = async () => {
+  const query = `
+    SELECT id, name FROM professional_type
+  `
+  const { rows } = await db.query(query)
+
+  // Traducción de los nombres al español
+  const translatedRows = rows.map((row) => {
+    let translatedName
+    switch (row.name) {
+      case 'Doctor':
+        translatedName = 'Médico'
+        break
+      case 'Nurse':
+        translatedName = 'Enfermero'
+        break
+      case 'Therapist':
+        translatedName = 'Terapeuta'
+        break
+      default:
+        translatedName = row.name // Devuelve el original si no coincide
+    }
+    return { ...row, name: translatedName }
+  })
+
+  return translatedRows
+}
+
+// Obtener todos los roles
+const getAllRoles = async () => {
+  const query = {
+    text: `SELECT * FROM role ORDER BY id`,
+  }
+  const { rows } = await db.query(query)
+
+  // Mapeo de traducciones
+  const roleTranslations = {
+    Admin: 'Administrador',
+    Patient: 'Paciente',
+    Professional: 'Profesional',
+  }
+
+  // Retornar roles traducidos
+  return rows.map((role) => ({
+    ...role,
+    name: roleTranslations[role.name] || role.name,
+  }))
+}
+
+const getSpecialtiesByType = async () => {
+  const query = `
+    SELECT id, name, 
+           CASE 
+             WHEN id BETWEEN 1 AND 15 THEN 'specialty' 
+             WHEN id BETWEEN 16 AND 60 THEN 'subspecialty' 
+             ELSE 'other' 
+           END AS type
+    FROM specialty
+  `
+  const { rows } = await db.query(query)
+  return rows
+}
+
 export const UserModel = {
   createUser,
   getAllUsers,
@@ -228,4 +293,7 @@ export const UserModel = {
   deleteUser,
   changePassword,
   changeStatus,
+  getAllProfessionalTypes,
+  getAllRoles,
+  getSpecialtiesByType,
 }

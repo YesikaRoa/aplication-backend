@@ -1,4 +1,5 @@
 import { ProfileModel } from '../models/profile.model.js'
+import { db } from '../database/connection.js'
 
 const getProfile = async (req, res, next) => {
   try {
@@ -14,8 +15,14 @@ const updateProfile = async (req, res, next) => {
   try {
     const id = req.user.id
     const updates = req.body
-    const success = await ProfileModel.updateProfile(id, updates)
-    return res.status(200).json({ message: 'Perfil actualizado con éxito' })
+    await ProfileModel.updateProfile(id, updates)
+
+    // Obtener usuario actualizado (incluyendo avatar)
+    const user = await db.query(
+      'SELECT id, avatar, first_name, last_name, email FROM users WHERE id = $1',
+      [id],
+    )
+    return res.status(200).json(user.rows[0]) // Aquí devuelves el usuario actualizado
   } catch (error) {
     next(error)
   }

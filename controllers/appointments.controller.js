@@ -70,6 +70,34 @@ const changeStatus = async (req, res, next) => {
   }
 }
 
+const getCities = async (req, res, next) => {
+  try {
+    const { search, limit } = req.query
+    const cities = await AppointmentsModel.getCities(search, limit)
+    res.json({ cities })
+  } catch (error) {
+    next(error)
+  }
+}
+const getPatients = async (req, res, next) => {
+  try {
+    const { search, limit } = req.query
+    const patients = await AppointmentsModel.getPatients(search, limit)
+    res.json({ patients })
+  } catch (error) {
+    next(error)
+  }
+}
+
+const getProfessionals = async (req, res, next) => {
+  try {
+    const { search, limit } = req.query
+    const professionals = await AppointmentsModel.getProfessionals(search, limit)
+    res.json({ professionals })
+  } catch (error) {
+    next(error)
+  }
+}
 export const AppointmentsController = {
   createAppointment,
   getAllAppointments,
@@ -77,4 +105,7 @@ export const AppointmentsController = {
   updateAppointment,
   deleteAppointment,
   changeStatus,
+  getCities,
+  getPatients,
+  getProfessionals,
 }

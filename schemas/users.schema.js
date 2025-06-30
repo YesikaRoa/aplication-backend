@@ -29,7 +29,7 @@ export const createUserSchema = z
     address: z.string().max(50, 'Address cannot exceed 50 characters').optional(),
     phone: z
       .string()
-      .regex(/^\d{12}$/, 'Phone must be a valid 12-digit number')
+      .regex(/^\d{11}$/, 'Phone must be a valid 11-digit number (04127690000)')
       .optional(),
     birth_date: z.preprocess((arg) => {
       if (typeof arg === 'string' || arg instanceof Date) {
@@ -41,7 +41,7 @@ export const createUserSchema = z
     role_id: z.number({ required_error: 'Role ID is required' }),
     status: z.enum(['Active', 'Inactive'], 'Status must be either Active or Inactive'),
 
-    avatar: z.string().url('Avatar must be a valid URL').optional(),
+    avatar: z.string().url('Avatar must be a valid URL'),
     // Los datos adicionales son opcionales y dependerán del role_id
     patient_data: patientDataSchema.optional(),
     professional_data: professionalDataSchema.optional(),
@@ -87,7 +87,7 @@ export const updateUserSchema = z
     address: z.string().max(50, 'Address cannot exceed 50 characters').optional(),
     phone: z
       .string()
-      .regex(/^\d{12}$/, 'Phone must be a valid 12-digit number')
+      .regex(/^\d{11}$/, 'Phone must be a valid 11-digit number')
       .optional(),
     birth_date: z.preprocess((arg) => {
       if (typeof arg === 'string' || arg instanceof Date) {

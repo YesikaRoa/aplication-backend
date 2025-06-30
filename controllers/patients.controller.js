@@ -60,10 +60,26 @@ const deletePatient = async (req, res, next) => {
   }
 }
 
+const changeStatus = async (req, res, next) => {
+  try {
+    const { id } = req.params
+    const { newStatus } = req.body
+    const updatedUser = await PatientModel.changeStatus(id, newStatus)
+
+    res.status(200).json({
+      message: 'Estado actualizado con éxito',
+      user: updatedUser,
+    })
+  } catch (error) {
+    next(error)
+  }
+}
+
 export const PatientsController = {
   createPatientWithUser,
   getAllPatients,
   getPatientById,
   updatePatient,
   deletePatient,
+  changeStatus,
 }

@@ -6,7 +6,7 @@ export const registerUserSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters long'),
   address: z.string().optional(),
-  phone: z.string().regex(/^\d{11}$/, 'Phone must be a valid 12-digit number'),
+  phone: z.string().regex(/^\d{11}$/, 'Phone must be a valid 11 digit (04127690000)'),
   birth_date: z.preprocess((arg) => {
     if (typeof arg === 'string' || arg instanceof Date) {
       return new Date(arg)

@@ -7,7 +7,7 @@ const getProfile = async (id) => {
   if (!id) throw createError('FIELDS_REQUIRED')
 
   const query = `
-    SELECT 
+      SELECT 
       u.id AS user_id, 
       u.first_name, 
       u.last_name, 
@@ -21,14 +21,14 @@ const getProfile = async (id) => {
       p.biography, 
       p.years_of_experience, 
       pt.name AS professional_type,
-      COALESCE(
-        ARRAY_AGG(DISTINCT CASE WHEN s.parent_id IS NULL THEN s.name END) FILTER (WHERE s.parent_id IS NULL),
-        '{}'
-      ) AS main_specialties,
-      COALESCE(
-        ARRAY_AGG(DISTINCT CASE WHEN s.parent_id IS NOT NULL THEN s.name END) FILTER (WHERE s.parent_id IS NOT NULL),
-        '{}'
-      ) AS sub_specialties
+     COALESCE(
+      JSON_AGG(CASE WHEN s.parent_id IS NULL THEN JSON_BUILD_OBJECT('id', s.id, 'name', s.name) END) FILTER (WHERE s.parent_id IS NULL),
+      '[]'
+    ) AS specialties,
+    COALESCE(
+      JSON_AGG(CASE WHEN s.parent_id IS NOT NULL THEN JSON_BUILD_OBJECT('id', s.id, 'name', s.name) END) FILTER (WHERE s.parent_id IS NOT NULL),
+      '[]'
+    ) AS subspecialties
     FROM users u
     LEFT JOIN professional p ON p.user_id = u.id
     LEFT JOIN professional_specialty ps ON ps.professional_id = p.id
@@ -45,14 +45,21 @@ const getProfile = async (id) => {
 
 const updateProfile = async (id, updates) => {
   const client = await db.connect()
+
   try {
     await client.query('BEGIN')
 
+    // Verificar que el usuario exista
+    const checkUser = await client.query('SELECT id FROM users WHERE id = $1', [id])
+    if (checkUser.rowCount === 0) {
+      throw createError('USER_NOT_FOUND')
+    }
+
     let userRowsAffected = 0
+    let professionalRowsAffected = 0
 
     // Actualizar avatar si está presente en userData
     if (updates.userData?.avatar) {
-      // Obtener el avatar actual
       const currentAvatarQuery = {
         text: `SELECT avatar FROM users WHERE id = $1`,
         values: [id],
@@ -60,9 +67,8 @@ const updateProfile = async (id, updates) => {
       const { rows: currentAvatarRows } = await client.query(currentAvatarQuery)
       const currentAvatar = currentAvatarRows[0]?.avatar
 
-      // Subir el nuevo avatar a Cloudinary
       if (updates.userData.avatar.startsWith('data:image')) {
-        const base64Data = updates.userData.avatar.split(',')[1] // Extraer contenido Base64
+        const base64Data = updates.userData.avatar.split(',')[1]
         const uploadResponse = await cloudinary.uploader.upload(
           `data:image/jpeg;base64,${base64Data}`,
           { folder: 'dsuocyzih' },
@@ -74,16 +80,15 @@ const updateProfile = async (id, updates) => {
 
         const newAvatarUrl = uploadResponse.secure_url
 
-        // Actualizar avatar en la base de datos
         const avatarUpdateQuery = {
           text: `UPDATE users SET avatar = $2, updated_at = NOW() WHERE id = $1`,
-          values: [id, newAvatarUrl], // Guardar solo la URL
+          values: [id, newAvatarUrl],
         }
         await client.query(avatarUpdateQuery)
 
         userRowsAffected++
 
-        // Eliminar el avatar anterior de Cloudinary si existe
+        // Eliminar avatar anterior
         if (currentAvatar) {
           const publicId = currentAvatar.split('/').slice(-2).join('/').split('.')[0]
           await cloudinary.uploader.destroy(publicId)
@@ -96,7 +101,7 @@ const updateProfile = async (id, updates) => {
     // Actualizar otros datos personales
     if (updates.userData) {
       const userData = { ...updates.userData }
-      delete userData.avatar // Remover avatar para evitar conflicto en los campos
+      delete userData.avatar
 
       if (Object.keys(userData).length > 0) {
         const personalFields = Object.keys(userData)
@@ -113,40 +118,48 @@ const updateProfile = async (id, updates) => {
       }
     }
 
-    // Actualizar datos profesionales (si están presentes)
+    // Actualizar datos profesionales (excepto specialties)
     if (updates.professionalData) {
+      const { rows: professionalRows } = await client.query(
+        'SELECT id FROM professional WHERE user_id = $1',
+        [id],
+      )
+      if (professionalRows.length === 0) {
+        throw createError('PROFESSIONAL_NOT_FOUND')
+      }
+      const professionalId = professionalRows[0].id
+
       const professionalFields = Object.keys(updates.professionalData)
-        .filter((key) => key !== 'specialties') // Excluir specialties para manejarlo aparte
+        .filter((key) => key !== 'specialties')
         .map((key, index) => `${key} = $${index + 2}`)
         .join(', ')
 
       if (professionalFields) {
+        const professionalValues = Object.entries(updates.professionalData)
+          .filter(([key]) => key !== 'specialties')
+          .map(([, value]) => value)
+
         const professionalQuery = {
           text: `UPDATE professional SET ${professionalFields}, updated_at = NOW() WHERE user_id = $1`,
-          values: [
-            id,
-            ...Object.values(updates.professionalData).filter((value) => typeof value !== 'object'),
-          ],
+          values: [id, ...professionalValues],
         }
-        await client.query(professionalQuery)
+        const resultProfessional = await client.query(professionalQuery)
+        professionalRowsAffected += resultProfessional.rowCount
       }
 
-      // Manejo de specialties (opcional)
+      // Actualizar specialties
       if (Array.isArray(updates.professionalData.specialties)) {
         const specialties = updates.professionalData.specialties
 
-        // Eliminar especialidades existentes
         await client.query({
-          text: `DELETE FROM professional_specialty WHERE professional_id = (SELECT id FROM professional WHERE user_id = $1)`,
-          values: [id],
+          text: `DELETE FROM professional_specialty WHERE professional_id = $1`,
+          values: [professionalId],
         })
 
-        // Insertar nuevas especialidades
         for (const specialtyId of specialties) {
           await client.query({
-            text: `INSERT INTO professional_specialty (professional_id, specialty_id) 
-                   SELECT id, $2 FROM professional WHERE user_id = $1`,
-            values: [id, specialtyId],
+            text: `INSERT INTO professional_specialty (professional_id, specialty_id) VALUES ($1, $2)`,
+            values: [professionalId, specialtyId],
           })
         }
       }
@@ -154,14 +167,15 @@ const updateProfile = async (id, updates) => {
 
     await client.query('COMMIT')
 
-    if (userRowsAffected === 0) {
+    if (userRowsAffected === 0 && professionalRowsAffected === 0) {
       throw createError('USER_NOT_FOUND')
     }
+
     return true
   } catch (error) {
     await client.query('ROLLBACK')
-    console.error('Error al actualizar el perfil:', error)
-    throw error
+
+    throw createError('INTERNAL_SERVER_ERROR')
   } finally {
     client.release()
   }

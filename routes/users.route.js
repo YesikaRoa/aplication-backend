@@ -14,39 +14,42 @@ import {
 
 const router = Router()
 
+// Nueva ruta para obtener tipos profesionales
+router.get('/professional-types', UsersController.getAllProfessionalTypes)
+
+// Nueva ruta para obtener roles
+router.get('/roles', UsersController.getAllRoles)
+
+//specialties
+router.get('/specialties', UsersController.getSpecialties)
+
 // Crear un usuario
-router.post(
-  '/',
-  authenticateToken,
-  authorizeAdmin,
-  validateSchema(createUserSchema),
-  UsersController.createUser,
-)
+router.post('/', authenticateToken, validateSchema(createUserSchema), UsersController.createUser)
 
 // Obtener todos los usuarios
 router.get('/', authenticateToken, UsersController.getAllUser)
 
 // Obtener un usuario por ID
-router.get('/:id', authenticateToken, authorizeAdmin, validateUserId, UsersController.getUserById)
+router.get('/:id', authenticateToken, validateUserId, UsersController.getUserById)
 
 // Actualizar un usuario
 router.put(
   '/:id',
   authenticateToken,
-  authorizeAdmin,
+
   validateUserId,
   validateSchema(updateUserSchema),
   UsersController.updateUser,
 )
 
 // Eliminar un usuario
-router.delete('/:id', authenticateToken, authorizeAdmin, validateUserId, UsersController.deleteUser)
+router.delete('/:id', authenticateToken, validateUserId, UsersController.deleteUser)
 
 // Cambiar la contraseña
 router.put(
   '/password/:id',
   authenticateToken,
-  authorizeAdmin,
+
   validateUserId,
   validateSchema(changePasswordSchema),
   UsersController.changePassword,
@@ -56,7 +59,7 @@ router.put(
 router.put(
   '/status/:id',
   authenticateToken,
-  authorizeAdmin,
+
   validateUserId,
   validateSchema(changeStatusSchema),
   UsersController.changeStatus,

@@ -7,11 +7,10 @@ const getAllMedicalRecords = async () => {
     text: `
       SELECT 
         mr.id, 
-        u_patient.first_name AS patient_first_name, 
-        u_patient.last_name AS patient_last_name, 
-        u_professional.first_name AS professional_first_name, 
-        u_professional.last_name AS professional_last_name, 
+        (u_patient.first_name || ' ' || u_patient.last_name) AS patient_full_name, 
+        (u_professional.first_name || ' ' || u_professional.last_name) AS professional_full_name, 
         a.scheduled_at, 
+        mr.appointment_id,
         mr.general_notes, 
         mr.image,
         mr.created_at 
@@ -37,11 +36,10 @@ const getMedicalRecordById = async (id) => {
         mr.image,
         mr.created_at,
         mr.updated_at,
-        u_patient.first_name AS patient_first_name, 
-        u_patient.last_name AS patient_last_name, 
-        u_professional.first_name AS professional_first_name, 
-        u_professional.last_name AS professional_last_name, 
-        a.scheduled_at 
+        (u_patient.first_name || ' ' || u_patient.last_name) AS patient_full_name, 
+        (u_professional.first_name || ' ' || u_professional.last_name) AS professional_full_name, 
+        a.scheduled_at,
+        mr.appointment_id
       FROM medical_record mr
       INNER JOIN patient p ON mr.patient_id = p.id
       INNER JOIN "users" u_patient ON p.user_id = u_patient.id
@@ -56,7 +54,6 @@ const getMedicalRecordById = async (id) => {
   if (!rows[0]) throw createError('MEDICAL_RECORD_NOT_FOUND')
   return rows[0]
 }
-
 // Verificar si un ID existe en la tabla correspondiente
 const checkExists = async (table, id) => {
   const query = {
