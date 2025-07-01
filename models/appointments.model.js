@@ -55,8 +55,10 @@ const createAppointment = async ({
   return rows[0]
 }
 
-const getAllAppointments = async () => {
-  const query = {
+// ...existing code...
+
+const getAllAppointments = async (userId, roleId) => {
+  let query = {
     text: `
       SELECT 
         a.id,
@@ -79,9 +81,17 @@ const getAllAppointments = async () => {
       LEFT JOIN professional pr ON a.professional_id = pr.id
       LEFT JOIN users u2 ON pr.user_id = u2.id
       LEFT JOIN city c ON c.id = a.city_id
-      ORDER BY a.created_at DESC 
     `,
+    values: [],
   }
+
+  // Si el usuario es profesional (rol 3), filtra por su user_id
+  if (roleId === 3) {
+    query.text += ' WHERE pr.user_id = $1'
+    query.values.push(userId)
+  }
+
+  query.text += ' ORDER BY a.created_at DESC'
 
   const { rows } = await db.query(query)
   return rows
@@ -180,8 +190,8 @@ const getCities = async (search = '', limit = 5) => {
   return rows
 }
 
-const getPatients = async (search = '', limit = 5) => {
-  const query = `
+const getPatients = async (search = '', limit = 5, userId, roleId) => {
+  let query = `
     SELECT 
       patient.id,
       users.first_name,
@@ -190,11 +200,25 @@ const getPatients = async (search = '', limit = 5) => {
       patient
     JOIN 
       users ON patient.user_id = users.id
-    WHERE 
-      users.first_name ILIKE $1 OR users.last_name ILIKE $1
-    LIMIT $2
   `
-  const { rows } = await db.query(query, [`%${search}%`, parseInt(limit)])
+  let params = []
+  let where = []
+
+  // Si no es admin, filtra por created_by
+  if (roleId !== 1) {
+    where.push('patient.created_by = $1')
+    params.push(userId)
+    where.push('(users.first_name ILIKE $2 OR users.last_name ILIKE $2)')
+    params.push(`%${search}%`)
+    query += ` WHERE ${where.join(' AND ')} LIMIT $3`
+    params.push(parseInt(limit))
+  } else {
+    where.push('(users.first_name ILIKE $1 OR users.last_name ILIKE $1)')
+    query += ` WHERE ${where.join(' AND ')} LIMIT $2`
+    params.push(`%${search}%`, parseInt(limit))
+  }
+
+  const { rows } = await db.query(query, params)
   return rows
 }
 

@@ -91,7 +91,10 @@ const generateMedicalHistoryPDF = async ({ patient_id, user_id, outputPath }) =>
   for (const [idx, record] of rows.entries()) {
     const circleSize = 20
     const circleX = 60
-    const circleY = doc.y + circleSize / 2
+    const filaTop = doc.y // Punto superior inicial del registro
+
+    // Calcula el centro vertical del círculo basándose en filaTop
+    const circleY = filaTop + circleSize / 2
 
     // Dibuja el círculo
     doc.circle(circleX, circleY, circleSize / 2).fillAndStroke(skyBlue, navyBlue)
@@ -100,11 +103,19 @@ const generateMedicalHistoryPDF = async ({ patient_id, user_id, outputPath }) =>
     const numberStr = String(idx + 1)
     const fontSize = 12
     doc.fontSize(fontSize).fillColor('white')
-    const numberWidth = doc.widthOfString(numberStr)
-    doc.text(numberStr, circleX - numberWidth / 2, circleY - fontSize / 2 + 1)
 
-    // Fuerza el cursor a la parte superior del círculo
-    const filaTop = circleY - circleSize / 2
+    // Calcula el ancho y la altura del número
+    const numberWidth = doc.widthOfString(numberStr)
+    const numberHeight = doc.currentLineHeight()
+
+    // Ajusta las coordenadas para centrar el número en el círculo
+    doc.text(
+      numberStr,
+      circleX - numberWidth / 2, // Centrado horizontal
+      circleY - numberHeight / 2, // Centrado vertical
+    )
+
+    // Fuerza el cursor a la parte superior del registro
     doc.y = filaTop
 
     // Dibuja el texto alineado a la derecha del círculo
@@ -113,9 +124,17 @@ const generateMedicalHistoryPDF = async ({ patient_id, user_id, outputPath }) =>
       .fillColor(navyBlue)
       .text(`Registro #${idx + 1}`, 90, filaTop, { underline: true })
     doc.fontSize(11).fillColor('#000')
-    doc.text(`Fecha: ${new Date(record.created_at).toLocaleString()}`, 90)
-    doc.text(`Notas: ${record.general_notes || 'Sin notas'}`, 90)
 
+    // Palabra "Fecha:" en negrita, luego la fecha normal
+    doc.font('Helvetica-Bold').text('Fecha:', 90, undefined, { continued: true })
+    doc.font('Helvetica').text(` ${new Date(record.created_at).toLocaleString()}`)
+
+    // Salto de línea antes de "Notas:"
+    doc.moveDown(0.5)
+
+    // Palabra "Notas:" en negrita, luego el texto normal
+    doc.font('Helvetica-Bold').text('Notas:', 90, undefined, { continued: true })
+    doc.font('Helvetica').text(` ${record.general_notes || 'Sin notas'}`)
     // Asegura que el cursor baje al menos el alto del círculo para el siguiente registro
     doc.y = Math.max(doc.y, filaTop + circleSize + 5)
 
@@ -172,7 +191,10 @@ const generateMedicalHistoryPDF = async ({ patient_id, user_id, outputPath }) =>
   doc
     .fontSize(12)
     .fillColor('#000')
-    .text('Professional:', lineX, signatureLineY + 20, { align: 'center', width: lineWidth })
+    .text('Professional de la salud:', lineX, signatureLineY + 20, {
+      align: 'center',
+      width: lineWidth,
+    })
   doc
     .fontSize(12)
     .fillColor('#000')

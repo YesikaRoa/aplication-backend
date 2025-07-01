@@ -5,7 +5,7 @@ import cloudinary from '../config/cloudinary.js'
 const PATIENT_FIELDS = `id, user_id, medical_data, created_at, updated_at`
 
 export const PatientModel = {
-  async createPatientWithUser({ user, medical_data, hashedPassword }) {
+  async createPatientWithUser({ user, medical_data, created_by }) {
     const client = await db.connect()
     try {
       await client.query('BEGIN')
@@ -28,7 +28,6 @@ export const PatientModel = {
         user.first_name,
         user.last_name,
         user.email,
-        hashedPassword,
         user.address || null,
         user.phone || null,
         user.birth_date || null,
@@ -38,21 +37,23 @@ export const PatientModel = {
         avatarUrl,
       ]
       const userInsert = `
-      INSERT INTO "users" (first_name, last_name, email, password, address, phone, birth_date, gender, role_id, status, avatar, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,$11, NOW(), NOW())
+      INSERT INTO "users" (first_name, last_name, email, address, phone, birth_date, gender, role_id, status, avatar, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
       RETURNING id, first_name, last_name, email, status
     `
       const { rows: userRows } = await client.query(userInsert, userValues)
       const newUser = userRows[0]
 
+      // Cambia aquí para incluir created_by
       const patientInsert = `
-      INSERT INTO patient (user_id, medical_data, created_at, updated_at)
-      VALUES ($1, $2, NOW(), NOW())
+      INSERT INTO patient (user_id, medical_data, created_at, updated_at, created_by)
+      VALUES ($1, $2, NOW(), NOW(), $3)
       RETURNING id, user_id, medical_data
     `
       const { rows: patientRows } = await client.query(patientInsert, [
         newUser.id,
         medical_data || null,
+        created_by, // <-- aquí va el id del usuario que crea
       ])
       const newPatient = patientRows[0]
 
@@ -84,7 +85,7 @@ export const PatientModel = {
       client.release()
     }
   },
-  async getAllPatients() {
+  async getAllPatients(userId, roleId) {
     try {
       const PATIENTS_FIELDS = `
       a.id,
@@ -100,13 +101,20 @@ export const PatientModel = {
       b.birth_date,
       b.phone
     `
-      const query = `
-      SELECT ${PATIENTS_FIELDS}
-      FROM patient a
-      INNER JOIN users b ON a.user_id = b.id
-    `
+      let query = `
+        SELECT ${PATIENTS_FIELDS}
+        FROM patient a
+        INNER JOIN users b ON a.user_id = b.id
+      `
+      let params = []
 
-      const { rows } = await db.query(query)
+      // Si no es admin (roleId !== 1), filtra por created_by
+      if (roleId !== 1) {
+        query += ' WHERE a.created_by = $1'
+        params.push(userId)
+      }
+
+      const { rows } = await db.query(query, params)
       return rows
     } catch (error) {
       throw createError('INTERNAL_SERVER_ERROR')

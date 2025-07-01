@@ -16,7 +16,7 @@ router.post('/', validateSchema(createAppointmentSchema), AppointmentsController
 
 router.get('/', authenticateToken, AppointmentsController.getAllAppointments)
 router.get('/cities', AppointmentsController.getCities)
-router.get('/patients', AppointmentsController.getPatients)
+router.get('/patients', authenticateToken, AppointmentsController.getPatients)
 router.get('/professionals', AppointmentsController.getProfessionals)
 
 router.get('/:id', authenticateToken, validateUserId, AppointmentsController.getAppointmentById)

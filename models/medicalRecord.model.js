@@ -2,8 +2,8 @@ import { db } from '../database/connection.js'
 import { createError } from '../utils/errors.js'
 import cloudinary from '../config/cloudinary.js'
 
-const getAllMedicalRecords = async () => {
-  const query = {
+const getAllMedicalRecords = async (userId, roleId) => {
+  let query = {
     text: `
       SELECT 
         mr.id, 
@@ -20,9 +20,17 @@ const getAllMedicalRecords = async () => {
       INNER JOIN professional prof ON mr.professional_id = prof.id
       INNER JOIN "users" u_professional ON prof.user_id = u_professional.id
       INNER JOIN appointment a ON mr.appointment_id = a.id
-      ORDER BY mr.created_at DESC
     `,
+    values: [],
   }
+
+  if (roleId === 3) {
+    query.text += ' WHERE prof.user_id = $1'
+    query.values.push(userId)
+  }
+
+  query.text += ' ORDER BY mr.created_at DESC'
+
   const { rows } = await db.query(query)
   return rows
 }
