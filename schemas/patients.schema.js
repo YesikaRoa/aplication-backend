@@ -5,13 +5,28 @@ const userSchema = z.object({
   first_name: z.string().min(1, 'first_name is required').max(30),
   last_name: z.string().min(1, 'last_name is required').max(30),
   email: z.string().email('Invalid email'),
-  password: z.string().min(6, 'Password must be at least 6 characters long'),
   address: z.string().max(50).optional(),
   phone: z
     .string()
     .regex(/^\d{11}$/, 'Phone must be a valid 11-digit number')
     .optional(),
-  birth_date: z.string().or(z.date()).optional(),
+  birth_date: z
+    .string()
+    .optional()
+    .refine(
+      (value) => {
+        if (!value) return true // Permitir opcional
+        // Parsear solo la parte de la fecha para evitar problemas de zona horaria
+        const [year, month, day] = value.split('-').map(Number)
+        const date = new Date(Date.UTC(year, month - 1, day))
+        const today = new Date()
+        today.setUTCHours(0, 0, 0, 0)
+        return date <= today
+      },
+      {
+        message: 'La fecha de nacimiento no puede ser mayor al día de hoy',
+      },
+    ),
   gender: z.enum(['F', 'M']).optional(),
   role_id: z.number(),
   status: z.enum(['Active', 'Inactive']),

@@ -18,7 +18,37 @@ const userSchema = z.object({
     .string()
     .regex(/^\d{11}$/, 'Phone must be a valid 11-digit number (04127690000)')
     .optional(),
-  birth_date: z.string({ required_error: 'Birth date is required' }).or(z.date()).optional(),
+  birth_date: z
+    .preprocess((arg) => {
+      if (typeof arg === 'string' || arg instanceof Date) {
+        return new Date(arg)
+      }
+      return arg
+    }, z.date())
+    .refine(
+      (date) => {
+        const today = new Date()
+        // No permitir fechas futuras
+        return date <= today
+      },
+      {
+        message: 'La fecha de nacimiento no puede ser mayor al día de hoy',
+      },
+    )
+    .refine(
+      (date) => {
+        const today = new Date()
+        const age = today.getFullYear() - date.getFullYear()
+        const m = today.getMonth() - date.getMonth()
+        if (m < 0 || (m === 0 && today.getDate() < date.getDate())) {
+          return age - 1 >= 20
+        }
+        return age >= 20
+      },
+      {
+        message: 'Debes tener al menos 20 años para registrarte',
+      },
+    ),
   gender: z.enum(['F', 'M'], { required_error: 'Gender is required' }).optional(),
   role_id: z.number({ required_error: 'Role ID is required' }),
   status: z.enum(['Active', 'Inactive'], { required_error: 'Status is required' }),

@@ -1,9 +1,12 @@
 import { MedicalRecordModel } from '../models/medicalRecord.model.js'
 
+// Ejemplo para tu controlador
 const getAllMedicalRecords = async (req, res, next) => {
   try {
-    const medicalRecords = await MedicalRecordModel.getAllMedicalRecords()
-    res.status(200).json(medicalRecords)
+    const userId = req.user?.id
+    const roleId = req.user?.role
+    const records = await MedicalRecordModel.getAllMedicalRecords(userId, roleId)
+    res.status(200).json(records)
   } catch (error) {
     next(error)
   }

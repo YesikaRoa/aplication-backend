@@ -3,6 +3,8 @@ import { ProfessionalsController } from '../controllers/professionals.controller
 import { validateSchema } from '../middlewares/validateSchema.js'
 import { authenticateToken } from '../middlewares/auth.js'
 import { validateUserId } from '../middlewares/validateParams.js'
+import { authorizeAdmin } from '../middlewares/authorizeAdmin.js'
+
 import {
   createProfessionalWithUserSchema,
   updateProfessionalSchema,
@@ -14,17 +16,25 @@ const router = Router()
 router.post(
   '/',
   authenticateToken,
+  authorizeAdmin,
   validateSchema(createProfessionalWithUserSchema),
   ProfessionalsController.createProfessionalWithUser,
 )
 
-router.get('/', authenticateToken, ProfessionalsController.getAllProfessionals)
+router.get('/', authenticateToken, authorizeAdmin, ProfessionalsController.getAllProfessionals)
 
-router.get('/:id', authenticateToken, validateUserId, ProfessionalsController.getProfessionalById)
+router.get(
+  '/:id',
+  authenticateToken,
+  authorizeAdmin,
+  validateUserId,
+  ProfessionalsController.getProfessionalById,
+)
 
 router.put(
   '/:id',
   authenticateToken,
+  authorizeAdmin,
   validateUserId,
   validateSchema(updateProfessionalSchema),
   ProfessionalsController.updateProfessional,
@@ -32,10 +42,17 @@ router.put(
 router.put(
   '/status/:id',
   authenticateToken,
+  authorizeAdmin,
   validateUserId,
   validateSchema(changeStatusSchema),
   ProfessionalsController.changeStatus,
 )
-router.delete('/:id', authenticateToken, validateUserId, ProfessionalsController.deleteProfessional)
+router.delete(
+  '/:id',
+  authenticateToken,
+  authorizeAdmin,
+  validateUserId,
+  ProfessionalsController.deleteProfessional,
+)
 
 export default router

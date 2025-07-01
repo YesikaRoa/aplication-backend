@@ -11,7 +11,11 @@ const createAppointment = async (req, res, next) => {
 
 const getAllAppointments = async (req, res, next) => {
   try {
-    const appointments = await AppointmentsModel.getAllAppointments()
+    // Asegúrate que tu middleware de autenticación agregue user al request
+    const userId = req.user?.id
+    const roleId = req.user?.role
+
+    const appointments = await AppointmentsModel.getAllAppointments(userId, roleId)
     return res.status(200).json(appointments)
   } catch (error) {
     next(error)
@@ -82,7 +86,12 @@ const getCities = async (req, res, next) => {
 const getPatients = async (req, res, next) => {
   try {
     const { search, limit } = req.query
-    const patients = await AppointmentsModel.getPatients(search, limit)
+    const patients = await AppointmentsModel.getPatients(
+      search,
+      limit,
+      req.user.id, // <-- del token
+      req.user.role, // <-- del token
+    )
     res.json({ patients })
   } catch (error) {
     next(error)

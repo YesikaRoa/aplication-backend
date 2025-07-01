@@ -1,11 +1,14 @@
 import { PatientModel } from '../models/patients.model.js'
-import { hashPassword } from '../utils/password.js'
 
 const createPatientWithUser = async (req, res, next) => {
   try {
     const { user, medical_data } = req.body
-    const hashedPassword = await hashPassword(user.password)
-    const result = await PatientModel.createPatientWithUser({ user, medical_data, hashedPassword })
+    // Agrega el id del usuario autenticado como created_by
+    const result = await PatientModel.createPatientWithUser({
+      user,
+      medical_data,
+      created_by: req.user.id,
+    })
     res.status(201).json({
       message: 'Paciente y usuario creados con éxito',
       user: result.user,
@@ -18,7 +21,8 @@ const createPatientWithUser = async (req, res, next) => {
 
 const getAllPatients = async (req, res, next) => {
   try {
-    const patients = await PatientModel.getAllPatients()
+    // Solo muestra los pacientes creados por el usuario, o todos si es admin
+    const patients = await PatientModel.getAllPatients(req.user.id, req.user.role)
     res.status(200).json(patients)
   } catch (error) {
     next(error)

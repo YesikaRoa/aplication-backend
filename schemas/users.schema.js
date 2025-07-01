@@ -31,12 +31,17 @@ export const createUserSchema = z
       .string()
       .regex(/^\d{11}$/, 'Phone must be a valid 11-digit number (04127690000)')
       .optional(),
-    birth_date: z.preprocess((arg) => {
-      if (typeof arg === 'string' || arg instanceof Date) {
-        return new Date(arg)
-      }
-      return arg
-    }, z.date().optional()),
+    birth_date: z
+      .preprocess((arg) => {
+        if (typeof arg === 'string' || arg instanceof Date) {
+          return new Date(arg)
+        }
+        return arg
+      }, z.date())
+      .optional()
+      .refine((date) => !date || date <= new Date(), {
+        message: 'La fecha de nacimiento no puede ser mayor al día de hoy',
+      }),
     gender: z.enum(['F', 'M'], 'Gender must be either F or M').optional(),
     role_id: z.number({ required_error: 'Role ID is required' }),
     status: z.enum(['Active', 'Inactive'], 'Status must be either Active or Inactive'),

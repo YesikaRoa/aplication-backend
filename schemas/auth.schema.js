@@ -7,14 +7,42 @@ export const registerUserSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters long'),
   address: z.string().optional(),
   phone: z.string().regex(/^\d{11}$/, 'Phone must be a valid 11 digit (04127690000)'),
-  birth_date: z.preprocess((arg) => {
-    if (typeof arg === 'string' || arg instanceof Date) {
-      return new Date(arg)
-    }
-    return arg
-  }, z.date()),
+  birth_date: z
+    .preprocess((arg) => {
+      if (typeof arg === 'string' || arg instanceof Date) {
+        return new Date(arg)
+      }
+      return arg
+    }, z.date())
+    .refine(
+      (date) => {
+        const today = new Date()
+        // No permitir fechas futuras
+        return date <= today
+      },
+      {
+        message: 'La fecha de nacimiento no puede ser mayor al día de hoy',
+      },
+    )
+    .refine(
+      (date) => {
+        const today = new Date()
+        const age = today.getFullYear() - date.getFullYear()
+        const m = today.getMonth() - date.getMonth()
+        if (m < 0 || (m === 0 && today.getDate() < date.getDate())) {
+          return age - 1 >= 20
+        }
+        return age >= 20
+      },
+      {
+        message: 'Debes tener al menos 20 años para registrarte',
+      },
+    ),
   gender: z.enum(['F', 'M'], 'Gender must be either F or M'),
-  role_id: z.number(),
+  role_id: z.number().refine((val) => val === 3, {
+    message: 'role_id debe ser igual a 3',
+  }),
+  // ...existing code...
   status: z.enum(['Active', 'Inactive']),
   avatar: z
     .string()
