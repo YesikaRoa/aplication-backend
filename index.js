@@ -15,8 +15,12 @@ import medicalRecordPdf from './routes/pdf.route.js'
 
 import { errorHandler } from './middlewares/errorHandler.js'
 const app = express()
-// Configuración de CORS
-app.use(cors({ origin: 'http://localhost:3002' }))
+
+app.use(
+  cors({
+    origin: ['http://localhost:3002', 'https://medipanel.netlify.app'],
+  }),
+)
 
 app.use(express.json({ limit: '10mb' }))
 
