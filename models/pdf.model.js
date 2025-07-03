@@ -87,7 +87,7 @@ const generateMedicalHistoryPDF = async ({ patient_id, user_id, outputPath }) =>
   }
   drawLine()
   doc.moveDown(1)
-
+  doc.text('')
   for (const [idx, record] of rows.entries()) {
     const circleSize = 20
     const circleX = 60
@@ -171,7 +171,7 @@ const generateMedicalHistoryPDF = async ({ patient_id, user_id, outputPath }) =>
     drawLine()
     doc.moveDown(1)
   }
-
+  doc.text('')
   // Pie de página con firma y sello
   const sealPath = path.join(process.cwd(), 'src', 'image', 'CERTIFICADO MÉDICO.png')
   const sealWidth = 110
