@@ -45,6 +45,7 @@ const getProfile = async (id) => {
 
 const updateProfile = async (id, updates) => {
   const client = await db.connect()
+  let hasChanges = false // Variable para rastrear si se realizó alguna actualización
 
   try {
     await client.query('BEGIN')
@@ -54,9 +55,6 @@ const updateProfile = async (id, updates) => {
     if (checkUser.rowCount === 0) {
       throw createError('USER_NOT_FOUND')
     }
-
-    let userRowsAffected = 0
-    let professionalRowsAffected = 0
 
     // Actualizar avatar si está presente en userData
     if (updates.userData?.avatar) {
@@ -84,9 +82,8 @@ const updateProfile = async (id, updates) => {
           text: `UPDATE users SET avatar = $2, updated_at = NOW() WHERE id = $1`,
           values: [id, newAvatarUrl],
         }
-        await client.query(avatarUpdateQuery)
-
-        userRowsAffected++
+        const avatarUpdateResult = await client.query(avatarUpdateQuery)
+        if (avatarUpdateResult.rowCount > 0) hasChanges = true
 
         // Eliminar avatar anterior
         if (currentAvatar) {
@@ -114,11 +111,11 @@ const updateProfile = async (id, updates) => {
         }
 
         const resultUser = await client.query(personalQuery)
-        userRowsAffected += resultUser.rowCount
+        if (resultUser.rowCount > 0) hasChanges = true
       }
     }
 
-    // Actualizar datos profesionales (excepto specialties)
+    // Actualizar datos profesionales (incluyendo specialties)
     if (updates.professionalData) {
       const { rows: professionalRows } = await client.query(
         'SELECT id FROM professional WHERE user_id = $1',
@@ -129,6 +126,7 @@ const updateProfile = async (id, updates) => {
       }
       const professionalId = professionalRows[0].id
 
+      // Actualizar datos profesionales (excepto specialties)
       const professionalFields = Object.keys(updates.professionalData)
         .filter((key) => key !== 'specialties')
         .map((key, index) => `${key} = $${index + 2}`)
@@ -144,37 +142,42 @@ const updateProfile = async (id, updates) => {
           values: [id, ...professionalValues],
         }
         const resultProfessional = await client.query(professionalQuery)
-        professionalRowsAffected += resultProfessional.rowCount
+        if (resultProfessional.rowCount > 0) hasChanges = true
       }
 
       // Actualizar specialties
       if (Array.isArray(updates.professionalData.specialties)) {
         const specialties = updates.professionalData.specialties
 
+        // Limpiamos y volvemos a insertar.
+        // Esto se considera un cambio, por eso actualizamos `hasChanges`.
         await client.query({
           text: `DELETE FROM professional_specialty WHERE professional_id = $1`,
           values: [professionalId],
         })
+        hasChanges = true
 
-        for (const specialtyId of specialties) {
-          await client.query({
-            text: `INSERT INTO professional_specialty (professional_id, specialty_id) VALUES ($1, $2)`,
-            values: [professionalId, specialtyId],
-          })
+        if (specialties.length > 0) {
+          for (const specialtyId of specialties) {
+            await client.query({
+              text: `INSERT INTO professional_specialty (professional_id, specialty_id) VALUES ($1, $2)`,
+              values: [professionalId, specialtyId],
+            })
+          }
         }
       }
     }
 
-    await client.query('COMMIT')
-
-    if (userRowsAffected === 0 && professionalRowsAffected === 0) {
-      throw createError('USER_NOT_FOUND')
+    // Si no hubo cambios, hacemos un ROLLBACK y retornamos false.
+    if (!hasChanges) {
+      await client.query('ROLLBACK')
+      return false
     }
 
-    return true
+    await client.query('COMMIT')
+    return true // Si hubo cambios, retornamos true
   } catch (error) {
     await client.query('ROLLBACK')
-
     throw createError('INTERNAL_SERVER_ERROR')
   } finally {
     client.release()
