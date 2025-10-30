@@ -6,7 +6,7 @@ export const createAppointmentSchema = z.object({
   status: z.enum(['pending', 'confirmed', 'completed', 'canceled']),
   notes: z.string().optional(),
   patient_id: z.number(),
-  professional_id: z.number(),
+  professional_id: z.number().optional(),
   city_id: z.number(),
   reason_for_visit: z.string().min(1).max(255),
   has_medical_record: z.boolean().optional(),

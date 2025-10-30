@@ -12,7 +12,13 @@ import {
 
 const router = Router()
 
-router.post('/', validateSchema(createAppointmentSchema), AppointmentsController.createAppointment)
+router.post(
+  '/',
+  authenticateToken,
+  validateSchema(createAppointmentSchema),
+
+  AppointmentsController.createAppointment,
+)
 
 router.get('/', authenticateToken, AppointmentsController.getAllAppointments)
 router.get('/cities', AppointmentsController.getCities)

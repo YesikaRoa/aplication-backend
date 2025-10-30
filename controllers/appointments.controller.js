@@ -2,8 +2,12 @@ import { AppointmentsModel } from '../models/appointments.model.js'
 
 const createAppointment = async (req, res, next) => {
   try {
-    const newAppointment = await AppointmentsModel.createAppointment(req.body)
-    res.status(201).json({ message: 'Cita creada con éxito', appointment: newAppointment })
+    const data = await AppointmentsModel.createAppointmentModel({
+      ...req.body,
+      user: req.user,
+    })
+
+    res.status(201).json({ message: 'Cita creada con éxito', data })
   } catch (error) {
     next(error)
   }

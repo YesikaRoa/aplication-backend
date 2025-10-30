@@ -1,7 +1,7 @@
 import { db } from '../database/connection.js'
 import { createError } from '../utils/errors.js'
 
-const createAppointment = async ({
+const createAppointmentModel = async ({
   scheduled_at,
   status,
   notes,
@@ -10,15 +10,26 @@ const createAppointment = async ({
   city_id,
   reason_for_visit,
   has_medical_record,
+  user,
 }) => {
-  // Verificar si el profesional existe antes de intentar la inserción
-  const professionalExists = await db.query('SELECT id FROM professional WHERE id = $1', [
-    professional_id,
-  ])
+  let professionalIdToUse = professional_id
 
+  if (user?.role === 3) {
+    const result = await db.query('SELECT id FROM professional WHERE user_id = $1', [user.id])
+    if (!result.rows.length) {
+      throw createError('PROFESSIONAL_NOT_FOUND_FOR_USER')
+    }
+    professionalIdToUse = result.rows[0].id
+  }
+
+  // Validar que el profesional exista (según el id final)
+  const professionalExists = await db.query('SELECT id FROM professional WHERE id = $1', [
+    professionalIdToUse,
+  ])
   if (!professionalExists.rows.length) {
     throw createError('INVALID_PROFESSIONAL_ID')
   }
+
   // Verificar si el patient existe antes de intentar la inserción
   const patientExists = await db.query('SELECT id FROM patient WHERE id = $1', [patient_id])
 
@@ -42,7 +53,7 @@ const createAppointment = async ({
       status,
       notes,
       patient_id,
-      professional_id,
+      professionalIdToUse,
       city_id,
       reason_for_visit,
       has_medical_record || false,
@@ -244,7 +255,7 @@ const getProfessionals = async (search = '', limit = 5) => {
 }
 
 export const AppointmentsModel = {
-  createAppointment,
+  createAppointmentModel,
   getAllAppointments,
   getAppointmentById,
   updateAppointment,

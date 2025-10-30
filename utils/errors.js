@@ -124,6 +124,11 @@ const errorList = {
     message: 'Avatar fallo',
     error: 'Forbidden',
   },
+  PROFESSIONAL_NOT_FOUND_FOR_USER: {
+    status: 404,
+    message: 'No se encontró un profesional asociado al usuario',
+    error: 'NotFound',
+  },
   INTERNAL_SERVER_ERROR: {
     status: 500,
     message: 'Error interno del servidor',
