@@ -31,7 +31,7 @@ const createUser = async ({
   if (!validStatuses.includes(status)) throw createError('INVALID_STATUS')
 
   // Hashear contraseña
-  const hashedPassword = await hashPassword(password)
+  const hashedPassword = password ? await hashPassword(password) : null
 
   // Subir avatar a Cloudinary si existe
   let avatarUrl = null

@@ -25,7 +25,11 @@ export const createUserSchema = z
       .min(1, 'Last name is required')
       .max(30, 'Last name cannot exceed 30 characters'),
     email: z.string().email('Invalid email address'),
-    password: z.string().min(6, 'Password must be at least 6 characters long'),
+    password: z
+      .string()
+      .min(6, 'Password must be at least 6 characters long')
+      .nullable()
+      .optional(), // ✅ permite null o undefined
     address: z.string().max(50, 'Address cannot exceed 50 characters').optional(),
     phone: z
       .string()
@@ -45,8 +49,13 @@ export const createUserSchema = z
     gender: z.enum(['F', 'M'], 'Gender must be either F or M').optional(),
     role_id: z.number({ required_error: 'Role ID is required' }),
     status: z.enum(['Active', 'Inactive'], 'Status must be either Active or Inactive'),
-
-    avatar: z.string().url('Avatar must be a valid URL'),
+    avatar: z
+      .string()
+      .refine(
+        (val) => /^data:image\/[a-z]+;base64,/.test(val) || /^https?:\/\//.test(val),
+        'Avatar must be a valid Base64 string or URL',
+      )
+      .optional(),
     // Los datos adicionales son opcionales y dependerán del role_id
     patient_data: patientDataSchema.optional(),
     professional_data: professionalDataSchema.optional(),
