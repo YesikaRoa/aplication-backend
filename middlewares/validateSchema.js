@@ -7,7 +7,7 @@ export const validateSchema = (schema) => (req, res, next) => {
   } catch (error) {
     if (error instanceof ZodError) {
       const issues = error.errors.map((e) => ({
-        path: e.path.join('.'),
+        path: e.path[e.path.length - 1],
         message: e.message,
       }))
       return res.status(400).json({

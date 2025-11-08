@@ -23,11 +23,20 @@ const createAppointmentModel = async ({
   }
 
   // Validar que el profesional exista (según el id final)
-  const professionalExists = await db.query('SELECT id FROM professional WHERE id = $1', [
-    professionalIdToUse,
-  ])
+  const professionalExists = await db.query(
+    `SELECT p.id, u.role_id 
+   FROM professional p
+   JOIN "users" u ON u.id = p.user_id
+   WHERE p.id = $1`,
+    [professionalIdToUse],
+  )
+
   if (!professionalExists.rows.length) {
     throw createError('INVALID_PROFESSIONAL_ID')
+  }
+
+  if (professionalExists.rows[0].role_id === 1) {
+    throw createError('INVALID_PROFESSIONAL_ROLE')
   }
 
   // Verificar si el patient existe antes de intentar la inserción

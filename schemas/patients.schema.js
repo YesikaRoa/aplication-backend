@@ -24,7 +24,7 @@ const userSchema = z.object({
         return date <= today
       },
       {
-        message: 'La fecha de nacimiento no puede ser mayor al día de hoy',
+        message: 'The date of birth cannot be later than today date.',
       },
     ),
   gender: z.enum(['F', 'M']).optional(),
