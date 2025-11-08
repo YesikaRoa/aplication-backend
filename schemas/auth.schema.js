@@ -21,7 +21,7 @@ export const registerUserSchema = z.object({
         return date <= today
       },
       {
-        message: 'La fecha de nacimiento no puede ser mayor al día de hoy',
+        message: 'The date of birth cannot be later than today.',
       },
     )
     .refine(
@@ -35,12 +35,12 @@ export const registerUserSchema = z.object({
         return age >= 20
       },
       {
-        message: 'Debes tener al menos 20 años para registrarte',
+        message: 'You must be at least 20 years old to register',
       },
     ),
   gender: z.enum(['F', 'M'], 'Gender must be either F or M'),
   role_id: z.number().refine((val) => val === 3, {
-    message: 'role_id debe ser igual a 3',
+    message: 'role_id must be equal to 3',
   }),
   // ...existing code...
   status: z.enum(['Active', 'Inactive']),

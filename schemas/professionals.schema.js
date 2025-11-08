@@ -27,6 +27,15 @@ const userSchema = z.object({
     }, z.date())
     .refine(
       (date) => {
+        // Validar que la fecha sea un Date válido (no Invalid Date)
+        return date instanceof Date && !isNaN(date.getTime())
+      },
+      {
+        message: 'Formato de fecha inválido',
+      },
+    )
+    .refine(
+      (date) => {
         const today = new Date()
         // No permitir fechas futuras
         return date <= today
@@ -38,12 +47,17 @@ const userSchema = z.object({
     .refine(
       (date) => {
         const today = new Date()
+        // Sólo validar la edad si la fecha es un Date válido y no es futura.
+        if (!(date instanceof Date) || isNaN(date.getTime())) return true
+        if (date > today) return true
+
         const age = today.getFullYear() - date.getFullYear()
         const m = today.getMonth() - date.getMonth()
+        let fullAge = age
         if (m < 0 || (m === 0 && today.getDate() < date.getDate())) {
-          return age - 1 >= 20
+          fullAge = age - 1
         }
-        return age >= 20
+        return fullAge >= 20
       },
       {
         message: 'Debes tener al menos 20 años para registrarte',

@@ -129,6 +129,11 @@ const errorList = {
     message: 'No se encontró un profesional asociado al usuario',
     error: 'NotFound',
   },
+  INVALID_PROFESSIONAL_ROLE: {
+    status: 400,
+    message: 'El profesional no puede tener el rol de administrador',
+    error: 'BadRequest',
+  },
   INTERNAL_SERVER_ERROR: {
     status: 500,
     message: 'Error interno del servidor',
