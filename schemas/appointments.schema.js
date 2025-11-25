@@ -8,7 +8,7 @@ export const createAppointmentSchema = z.object({
   patient_id: z.number(),
   professional_id: z.number().optional(),
   city_id: z.number(),
-  reason_for_visit: z.string().min(1).max(255),
+  reason_for_visit: z.string().min(1).max(800),
   has_medical_record: z.boolean().optional(),
 })
 
@@ -18,7 +18,7 @@ export const updateAppointmentSchema = z
     scheduled_at: z.preprocess((arg) => new Date(arg), z.date()).optional(),
     status: z.enum(['pending', 'confirmed', 'completed', 'canceled']).optional(),
     notes: z.string().optional(),
-    reason_for_visit: z.string().min(1).max(255).optional(),
+    reason_for_visit: z.string().min(1).max(800).optional(),
     has_medical_record: z.boolean().optional(),
     city_id: z.number().optional(),
   })
