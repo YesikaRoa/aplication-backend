@@ -8,7 +8,7 @@ export const createAppointmentSchema = z.object({
   patient_id: z.number(),
   professional_id: z.number().optional(),
   city_id: z.number(),
-  reason_for_visit: z.string().min(1).max(800),
+  reason_for_visit: z.string().optional(),
   has_medical_record: z.boolean().optional(),
 })
 

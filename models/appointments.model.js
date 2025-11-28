@@ -211,29 +211,39 @@ const getCities = async (search = '', limit = 5) => {
 }
 
 const getPatients = async (search = '', limit = 5, userId, roleId) => {
-  let query = `
-    SELECT 
-      patient.id,
-      users.first_name,
-      users.last_name
-    FROM 
-      patient
-    JOIN 
-      users ON patient.user_id = users.id
-  `
   let params = []
   let where = []
 
-  // Si no es admin, filtra por created_by
-  if (roleId !== 1) {
-    where.push('patient.created_by = $1')
+  let query = `
+    SELECT DISTINCT 
+      p.id,
+      u.first_name,
+      u.last_name
+    FROM patient p
+    JOIN users u ON p.user_id = u.id
+    LEFT JOIN appointment a ON a.patient_id = p.id
+    LEFT JOIN professional pr ON pr.id = a.professional_id
+  `
+
+  if (roleId === 3) {
+    // PROFESSIONAL
+    where.push(`
+      (
+        p.created_by = $1         -- creados por el profesional
+        OR pr.user_id = $1        -- citas asociadas al profesional
+      )
+    `)
     params.push(userId)
-    where.push('(users.first_name ILIKE $2 OR users.last_name ILIKE $2)')
+
+    // filtro de búsqueda
+    where.push(`(u.first_name ILIKE $2 OR u.last_name ILIKE $2)`)
     params.push(`%${search}%`)
+
     query += ` WHERE ${where.join(' AND ')} LIMIT $3`
     params.push(parseInt(limit))
-  } else {
-    where.push('(users.first_name ILIKE $1 OR users.last_name ILIKE $1)')
+  } else if (roleId === 1) {
+    // ADMIN ve todos los pacientes
+    where.push(`(u.first_name ILIKE $1 OR u.last_name ILIKE $1)`)
     query += ` WHERE ${where.join(' AND ')} LIMIT $2`
     params.push(`%${search}%`, parseInt(limit))
   }
