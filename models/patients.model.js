@@ -88,31 +88,38 @@ export const PatientModel = {
   async getAllPatients(userId, roleId) {
     try {
       const PATIENTS_FIELDS = `
-      a.id,
-      a.medical_data,
-      a.created_at,
-      a.updated_at,
-      b.first_name,
-      b.last_name,
-      b.avatar,
-      b.email,
-      b.status,
-      b.address,
-      b.birth_date,
-      b.phone
+      p.id,
+      p.medical_data,
+      p.created_at,
+      p.updated_at,
+      u.first_name,
+      u.last_name,
+      u.avatar,
+      u.email,
+      u.status,
+      u.address,
+      u.birth_date,
+      u.phone
     `
+
       let query = `
-        SELECT ${PATIENTS_FIELDS}
-        FROM patient a
-        INNER JOIN users b ON a.user_id = b.id
-      `
+      SELECT DISTINCT ${PATIENTS_FIELDS}
+      FROM patient p
+      INNER JOIN users u ON p.user_id = u.id
+    `
+
       let params = []
 
-      // Si no es admin (roleId !== 1), filtra por created_by
-      if (roleId !== 1) {
-        query += ' WHERE a.created_by = $1'
+      if (roleId === 3) {
+        query += `
+        LEFT JOIN appointment a ON a.patient_id = p.id
+        LEFT JOIN professional pr ON a.professional_id = pr.id
+        WHERE p.created_by = $1 OR pr.user_id = $1
+      `
         params.push(userId)
       }
+
+      query += ` ORDER BY p.created_at DESC`
 
       const { rows } = await db.query(query, params)
       return rows
@@ -120,6 +127,7 @@ export const PatientModel = {
       throw createError('INTERNAL_SERVER_ERROR')
     }
   },
+
   async getPatientById(id) {
     try {
       if (!id) throw createError('INVALID_ID')

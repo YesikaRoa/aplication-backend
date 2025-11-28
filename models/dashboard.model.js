@@ -1,155 +1,260 @@
 import { db } from '../database/connection.js'
 import { createError } from '../utils/errors.js'
 
-const getDashboardStats = async () => {
+const getDashboardStats = async (user_id, role) => {
   try {
-    // Pacientes atendidos en el último mes con estado completado
-    const attendedPatientsQuery = {
-      text: `
-    SELECT COUNT(*) AS attended_patients
-    FROM appointment
-    WHERE status = 'completed' 
-      AND scheduled_at >= date_trunc('month', NOW() - INTERVAL '1 month')
-      AND scheduled_at < date_trunc('month', NOW());
-  `,
+    let professional_id = null
+
+    // Obtener professional_id si es rol profesional
+    if (role === 3) {
+      const result = await db.query(`SELECT id FROM professional WHERE user_id = $1`, [user_id])
+      professional_id = result.rows[0]?.id || null
     }
 
-    const attendedPatients = await db.query(attendedPatientsQuery)
+    const profCondition = professional_id ? `AND a.professional_id = ${professional_id}` : ``
 
-    // Nuevos pacientes confirmados esta semana
-    const newPatientsQuery = {
-      text: `
-        SELECT COUNT(*) AS new_patients
-        FROM appointment
-        WHERE status = 'confirmed'
-          AND scheduled_at >= DATE_TRUNC('week', NOW());
+    // 1. Pacientes atendidos último mes
+    const attendedPatients = await db.query(`
+      SELECT COUNT(*) AS attended_patients
+      FROM appointment a
+      WHERE a.status = 'completed'
+        ${profCondition}
+        AND a.scheduled_at >= date_trunc('month', NOW() - INTERVAL '1 month')
+        AND a.scheduled_at < date_trunc('month', NOW());
+    `)
+
+    // 2. Nuevos pacientes esta semana
+    const newPatients = await db.query(`
+      SELECT COUNT(DISTINCT patient_id) AS new_patients
+      FROM appointment a
+      WHERE a.status = 'confirmed'
+        ${profCondition}
+        AND a.scheduled_at >= DATE_TRUNC('week', NOW());
+    `)
+
+    // --- CAMBIOS PARA PROFESSIONAL ---
+    let topSpecialty = null
+    let appointmentsByWeekday = []
+    let patientsNewVsReturning = []
+    let todayAppointments = null
+
+    if (role === 3) {
+      const now = new Date()
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      const startOfNextDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
+      // CARD — Citas programadas para hoy
+      const today = await db.query(
+        `
+          SELECT COUNT(*) AS today_appointments
+          FROM appointment a
+          WHERE a.status = 'confirmed'
+          AND a.scheduled_at >= $1  
+          AND a.scheduled_at < $2   
+          ${profCondition};
       `,
+        [startOfDay, startOfNextDay],
+      ) // Asegúrate de pasar las variables en el array
+
+      todayAppointments = parseInt(today.rows[0].today_appointments || 0)
+
+      // GRÁFICO DE BARRAS — Citas por día de la semana
+      const weekData = await db.query(`
+        SELECT
+            wd.day_name,
+            -- Contar solo las citas con status 'confirmed'
+            COALESCE(SUM(CASE WHEN a.status = 'confirmed' THEN 1 ELSE 0 END), 0) AS confirmed_count,
+            -- Contar solo las citas con status 'completed'
+            COALESCE(SUM(CASE WHEN a.status = 'completed' THEN 1 ELSE 0 END), 0) AS completed_count
+        FROM (
+            -- 1. Creamos una tabla temporal de DOWs (1=Monday a 6=Saturday)
+            VALUES (1), (2), (3), (4), (5), (6)
+        ) AS w(day_of_week_num)
+        
+        -- [Lógica para obtener el nombre del día se mantiene igual]
+        CROSS JOIN LATERAL (
+            SELECT (EXTRACT(DOW FROM date_trunc('week', NOW()))::int) AS start_dow_num,
+                  date_trunc('week', NOW())::date AS start_date
+        ) AS s
+        CROSS JOIN LATERAL (
+            SELECT TRIM(TO_CHAR(s.start_date + (w.day_of_week_num - s.start_dow_num) * INTERVAL '1 day', 'Day')) AS day_name
+        ) AS wd
+        
+        -- 3. Hacemos LEFT JOIN con las citas
+        LEFT JOIN appointment a ON 
+            a.scheduled_at >= date_trunc('week', NOW())
+            AND a.scheduled_at < date_trunc('week', NOW()) + INTERVAL '7 days'
+            AND EXTRACT(DOW FROM a.scheduled_at) = w.day_of_week_num
+            -- El filtro global ahora incluye ambos estatus en la unión para optimización
+            AND a.status IN ('confirmed', 'completed') 
+            ${profCondition}
+            
+        GROUP BY w.day_of_week_num, wd.day_name
+        ORDER BY w.day_of_week_num;
+    `)
+
+      // 4. Mapeo de datos en Node.js/JavaScript
+      appointmentsByWeekday = weekData.rows.map((r) => ({
+        day: r.day_name,
+        // Ahora tenemos dos propiedades de conteo por día
+        confirmed: parseInt(r.confirmed_count),
+        completed: parseInt(r.completed_count),
+      }))
+
+      // DONA — Pacientes nuevos vs recurrentes
+      const newReturning = await db.query(`
+      SELECT type, COUNT(*) AS count
+        FROM (
+          SELECT
+            a.patient_id,
+            CASE
+              WHEN COUNT(*) = 1 THEN 'new'
+              ELSE 'recurrent'
+            END AS type
+          FROM appointment a
+          WHERE 1 = 1
+            ${profCondition}
+          GROUP BY a.patient_id
+        ) AS t
+        GROUP BY type;
+      `)
+
+      patientsNewVsReturning = newReturning.rows.map((r) => ({
+        type: r.type,
+        count: parseInt(r.count),
+      }))
+    } else {
+      // ADMIN mantiene su lógica normal
+      const specialty = await db.query(`
+        SELECT s.name AS specialty
+        FROM appointment a
+        JOIN professional_specialty ps ON ps.professional_id = a.professional_id
+        JOIN specialty s ON s.id = ps.specialty_id
+        WHERE s.id BETWEEN 1 AND 15
+          ${profCondition}
+        GROUP BY s.name
+        ORDER BY COUNT(DISTINCT a.patient_id) DESC
+        LIMIT 1;
+      `)
+
+      topSpecialty = specialty.rows[0] || null
     }
-    const newPatients = await db.query(newPatientsQuery)
 
-    // Especialidad más solicitada
-    const topSpecialtyQuery = {
-      text: `
-    SELECT 
-      s.name AS specialty
-    FROM appointment a
-    JOIN professional_specialty ps ON ps.professional_id = a.professional_id
-    JOIN specialty s ON s.id = ps.specialty_id
-    WHERE s.id BETWEEN 1 AND 15 -- Solo especialidades
-    GROUP BY s.name
-    ORDER BY COUNT(DISTINCT a.patient_id) DESC
-    LIMIT 1;
-  `,
-    }
+    // Resumen citas por mes (igual para ambos roles)
+    const appointmentsByMonth = await db.query(`
+      SELECT 
+        TO_CHAR(a.scheduled_at, 'YYYY-MM') AS month,
+        a.status,
+        COUNT(*) AS count
+      FROM appointment a
+      WHERE 1=1
+        ${profCondition}
+      GROUP BY month, a.status
+      ORDER BY month ASC;
+    `)
 
-    const topSpecialty = await db.query(topSpecialtyQuery)
+    // Top profesionales (solo admin)
+    const topProfessionals =
+      role === 1
+        ? await db.query(`
+          SELECT 
+            CONCAT(u.first_name, ' ', u.last_name) AS professional,
+            COUNT(DISTINCT a.patient_id) AS patient_count
+          FROM appointment a
+          JOIN professional p ON p.id = a.professional_id
+          JOIN users u ON u.id = p.user_id
+          WHERE a.status = 'completed'
+          GROUP BY u.first_name, u.last_name
+          ORDER BY patient_count DESC
+          LIMIT 5;
+        `)
+        : { rows: [] }
 
-    // Resumen de citas por mes por estado
-    const appointmentsByMonthQuery = {
-      text: `
+    // Pacientes por ciudad (solo admin)
+    const patientsByCity =
+      role === 1 || role === 3
+        ? await db.query(`
         SELECT 
-          TO_CHAR(scheduled_at, 'YYYY-MM') AS month, 
-          status, 
-          COUNT(*) AS count
-        FROM appointment
-        GROUP BY month, status
-        ORDER BY month ASC;
-      `,
-    }
-    const appointmentsByMonth = await db.query(appointmentsByMonthQuery)
-
-    // Profesionales con más pacientes atendidos
-    const topProfessionalsQuery = {
-      text: `
-    SELECT 
-      CONCAT(u.first_name, ' ', u.last_name) AS professional,
-      COUNT(DISTINCT a.patient_id) AS patient_count
-    FROM appointment a
-    JOIN professional p ON p.id = a.professional_id
-    JOIN users u ON u.id = p.user_id
-    WHERE a.status = 'completed'
-    GROUP BY u.first_name, u.last_name
-    ORDER BY patient_count DESC
-    LIMIT 5;
-  `,
-    }
-
-    const topProfessionals = await db.query(topProfessionalsQuery)
-
-    // Pacientes por ciudad
-    const patientsByCityQuery = {
-      text: `
-        SELECT 
-          c.name AS city, 
+          c.name AS city,
           COUNT(a.id) AS patient_count
         FROM appointment a
         JOIN city c ON c.id = a.city_id
+        WHERE 1=1
+          ${profCondition}   -- si es profesional, filtra por su id
         GROUP BY c.name
         ORDER BY patient_count DESC;
-      `,
-    }
-    const patientsByCity = await db.query(patientsByCityQuery)
+      `)
+        : { rows: [] }
 
-    // Especialidades más solicitadas (para un reporte más general)
-    const specialtiesByRequestQuery = {
-      text: `
-    SELECT 
-      s.name AS specialty, 
-      COUNT(DISTINCT a.patient_id) AS patient_count
-    FROM appointment a
-    JOIN professional_specialty ps ON ps.professional_id = a.professional_id
-    JOIN specialty s ON s.id = ps.specialty_id
-    WHERE s.id BETWEEN 1 AND 15 -- Solo especialidades
-    GROUP BY s.name
-    ORDER BY patient_count DESC;
-  `,
-    }
+    // Especialidades más solicitadas (solo admin)
+    const specialtiesByRequest =
+      role === 1
+        ? await db.query(`
+          SELECT 
+            s.name AS specialty,
+            COUNT(DISTINCT a.patient_id) AS patient_count
+          FROM appointment a
+          JOIN professional_specialty ps ON ps.professional_id = a.professional_id
+          JOIN specialty s ON s.id = ps.specialty_id
+          WHERE s.id BETWEEN 1 AND 15
+          GROUP BY s.name
+          ORDER BY patient_count DESC;
+        `)
+        : { rows: [] }
 
-    const specialtiesByRequest = await db.query(specialtiesByRequestQuery)
-
-    // Pacientes recientes registrados en citas durante los últimos 7 días
-    const recentPatientsQuery = {
-      text: `
-    SELECT 
-      CONCAT(u_p.first_name, ' ', u_p.last_name) AS patient,
-      CONCAT(u_prof.first_name, ' ', u_prof.last_name) AS professional,
-      c.name AS city,
-      a.scheduled_at,
-      a.status
-    FROM appointment a
-    JOIN patient p ON p.id = a.patient_id
-    JOIN users u_p ON u_p.id = p.user_id
-    JOIN professional prof ON prof.id = a.professional_id
-    JOIN users u_prof ON u_prof.id = prof.user_id
-    JOIN city c ON c.id = a.city_id
-    WHERE a.created_at >= NOW() - INTERVAL '7 days' -- Filtro por fecha de creación
-    ORDER BY a.created_at DESC
-    LIMIT 10;
-  `,
-    }
-
-    const recentPatients = await db.query(recentPatientsQuery)
+    // Pacientes recientes (ambos roles)
+    const recentPatients = await db.query(`
+      SELECT 
+        CONCAT(u_p.first_name, ' ', u_p.last_name) AS patient,
+        CONCAT(u_prof.first_name, ' ', u_prof.last_name) AS professional,
+        c.name AS city,
+        a.scheduled_at,
+        a.status
+      FROM appointment a
+      JOIN patient p ON p.id = a.patient_id
+      JOIN users u_p ON u_p.id = p.user_id
+      JOIN professional prof ON prof.id = a.professional_id
+      JOIN users u_prof ON u_prof.id = prof.user_id
+      JOIN city c ON c.id = a.city_id
+      WHERE a.created_at >= NOW() - INTERVAL '7 days'
+        ${profCondition}
+      ORDER BY a.created_at DESC
+      LIMIT 10;
+    `)
 
     return {
-      attendedPatients: parseInt(attendedPatients.rows[0]?.attended_patients || 0, 10),
-      newPatients: parseInt(newPatients.rows[0]?.new_patients || 0, 10),
-      topSpecialty: topSpecialty.rows[0] || null,
-      appointmentsByMonth: appointmentsByMonth.rows.map((row) => ({
-        ...row,
-        count: parseInt(row.count, 10),
+      attendedPatients: parseInt(attendedPatients.rows[0]?.attended_patients || 0),
+      newPatients: parseInt(newPatients.rows[0]?.new_patients || 0),
+
+      // ADMIN → Especialidad más solicitada
+      // PROFESSIONAL → Citas de hoy
+      topSpecialty,
+      todayAppointments,
+
+      // ADMIN → Especialidades más solicitadas / Top profesionales
+      // PROFESSIONAL → Citas por día / Nuevos vs recurrentes
+      appointmentsByWeekday,
+      patientsNewVsReturning,
+
+      appointmentsByMonth: appointmentsByMonth.rows.map((r) => ({
+        ...r,
+        count: parseInt(r.count),
       })),
-      topProfessionals: topProfessionals.rows.map((row) => ({
-        ...row,
-        patient_count: parseInt(row.patient_count, 10),
+
+      topProfessionals: topProfessionals.rows.map((r) => ({
+        ...r,
+        patient_count: parseInt(r.patient_count),
       })),
-      patientsByCity: patientsByCity.rows.map((row) => ({
-        ...row,
-        patient_count: parseInt(row.patient_count, 10),
+
+      patientsByCity: patientsByCity.rows.map((r) => ({
+        ...r,
+        patient_count: parseInt(r.patient_count),
       })),
-      specialtiesByRequest: specialtiesByRequest.rows.map((row) => ({
-        ...row,
-        patient_count: parseInt(row.patient_count, 10),
+
+      specialtiesByRequest: specialtiesByRequest.rows.map((r) => ({
+        ...r,
+        patient_count: parseInt(r.patient_count),
       })),
+
       recentPatients: recentPatients.rows,
     }
   } catch (error) {
