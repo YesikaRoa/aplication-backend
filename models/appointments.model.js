@@ -56,7 +56,11 @@ const createAppointmentModel = async ({
     text: `INSERT INTO appointment 
            (scheduled_at, status, notes, patient_id, professional_id, city_id, reason_for_visit, has_medical_record) 
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
-           RETURNING *`,
+           RETURNING *, (
+            SELECT user_id 
+            FROM professional 
+            WHERE id = professional_id
+          ) AS professional_user_id `,
     values: [
       scheduled_at,
       status,
@@ -74,8 +78,6 @@ const createAppointmentModel = async ({
 
   return rows[0]
 }
-
-// ...existing code...
 
 const getAllAppointments = async (userId, roleId) => {
   let query = {
@@ -159,7 +161,18 @@ const updateAppointment = async (id, updates) => {
     .join(', ')
 
   const query = {
-    text: `UPDATE appointment SET ${fields}${fields ? ', ' : ''}updated_at = NOW() WHERE id = $1 RETURNING *`,
+    text: `
+    UPDATE appointment a
+    SET ${fields}${fields ? ', ' : ''}updated_at = NOW()
+    WHERE a.id = $1
+    RETURNING
+      a.*,
+      (
+        SELECT p.user_id
+        FROM professional p
+        WHERE p.id = a.professional_id
+      ) AS professional_user_id
+  `,
     values: [id, ...Object.values(updates)],
   }
 
