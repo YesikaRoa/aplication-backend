@@ -1,4 +1,5 @@
 import { AppointmentsModel } from '../models/appointments.model.js'
+import axios from 'axios'
 
 const createAppointment = async (req, res, next) => {
   try {
@@ -6,7 +7,20 @@ const createAppointment = async (req, res, next) => {
       ...req.body,
       user: req.user,
     })
-
+    if (req.user.role === 1) {
+      try {
+        await axios.post(process.env.LAMBDA_URL, {
+          module: 'appointments',
+          action: 'CREATED_BY_ADMIN',
+          payload: {
+            appointment_id: data.id,
+            professional_user_id: data.professional_user_id,
+          },
+        })
+      } catch (err) {
+        console.error('Error enviando evento a Lambda:', err.response?.data || err.message)
+      }
+    }
     res.status(201).json({ message: 'Cita creada con éxito', data })
   } catch (error) {
     next(error)
@@ -69,6 +83,19 @@ const changeStatus = async (req, res, next) => {
 
     const updatedAppointment = await AppointmentsModel.updateAppointment(id, { status })
 
+    try {
+      await axios.post(process.env.LAMBDA_URL, {
+        module: 'appointments',
+        action: 'STATUS_CHANGED',
+        payload: {
+          appointment_id: updatedAppointment.id,
+          new_status: status,
+          professional_user_id: updatedAppointment.professional_user_id,
+        },
+      })
+    } catch (err) {
+      console.error('Error enviando evento a Lambda:', err.response?.data || err.message)
+    }
     res.status(200).json({
       message: 'Estado de la cita actualizado con éxito',
       appointment: updatedAppointment,

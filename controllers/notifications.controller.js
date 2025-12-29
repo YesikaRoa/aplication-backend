@@ -39,9 +39,25 @@ const createNotification = async (req, res, next) => {
     next(error)
   }
 }
+const createNotificationInternal = async (req, res, next) => {
+  try {
+    const { user_id, content, type } = req.body
+
+    const notification = await NotificationModel.createNotification({
+      user_id,
+      content,
+      type,
+    })
+
+    res.status(201).json(notification)
+  } catch (error) {
+    next(error)
+  }
+}
 
 export const NotificationsController = {
   getAllNotifications,
+  createNotificationInternal,
   deleteNotification,
   createNotification,
 }
