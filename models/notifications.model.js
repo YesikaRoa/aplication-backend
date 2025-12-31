@@ -50,4 +50,20 @@ export const NotificationModel = {
       throw createError('INTERNAL_SERVER_ERROR')
     }
   },
+  async updateStatus(id, userId, status) {
+    await db.query(
+      `UPDATE notification SET status = $1, updated_at = NOW()
+     WHERE id = $2 AND user_id = $3`,
+      [status, id, userId],
+    )
+  },
+  async deleteAllByUserId(userId) {
+    try {
+      if (!userId) throw createError('INVALID_ID')
+      await db.query(`DELETE FROM notification WHERE user_id = $1`, [userId])
+      return true
+    } catch (error) {
+      throw createError('INTERNAL_SERVER_ERROR')
+    }
+  },
 }

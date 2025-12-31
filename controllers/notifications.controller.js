@@ -55,9 +55,38 @@ const createNotificationInternal = async (req, res, next) => {
   }
 }
 
+const updateStatus = async (req, res, next) => {
+  try {
+    const userId = req.user.id
+    const { id } = req.params
+    const { status } = req.body
+
+    // Validar que el status sea válido
+    if (!['read', 'unread'].includes(status)) {
+      return res.status(400).json({ message: 'Status inválido' })
+    }
+
+    await NotificationModel.updateStatus(id, userId, status)
+    res.json({ success: true })
+  } catch (error) {
+    next(error)
+  }
+}
+
+const deleteAllNotifications = async (req, res, next) => {
+  try {
+    const userId = req.user.id
+    await NotificationModel.deleteAllByUserId(userId)
+    res.status(200).json({ success: true, message: 'Todas las notificaciones eliminadas' })
+  } catch (error) {
+    next(error)
+  }
+}
 export const NotificationsController = {
   getAllNotifications,
   createNotificationInternal,
   deleteNotification,
   createNotification,
+  updateStatus,
+  deleteAllNotifications,
 }
