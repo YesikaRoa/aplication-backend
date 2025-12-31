@@ -22,4 +22,9 @@ router.get('/', authenticateToken, NotificationsController.getAllNotifications)
 // Eliminar una notificación (DELETE /notifications/:id)
 router.delete('/:id', authenticateToken, validateUserId, NotificationsController.deleteNotification)
 
+//Actualizar status de una notificación (PUT /notifications/:id/status)
+router.put('/:id/status', authenticateToken, validateUserId, NotificationsController.updateStatus)
+
+// Eliminar todas las notificaciones del usuario
+router.delete('/all', authenticateToken, NotificationsController.deleteAllNotifications)
 export default router
