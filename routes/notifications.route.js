@@ -7,6 +7,15 @@ import { validateSchema } from '../middlewares/validateSchema.js'
 import { authenticateInternal } from '../middlewares/authInternal.js'
 const router = Router()
 
+// Eliminar todas las notificaciones del usuario
+router.delete('/all', authenticateToken, NotificationsController.deleteAllNotifications)
+
+// Eliminar una notificación (DELETE /notifications/:id)
+router.delete('/:id', authenticateToken, validateUserId, NotificationsController.deleteNotification)
+
+//Actualizar status de una notificación (PUT /notifications/:id/status)
+router.put('/:id/status', authenticateToken, validateUserId, NotificationsController.updateStatus)
+
 // Crear una nueva notificación (POST /notifications)
 router.post(
   '/',
@@ -19,12 +28,4 @@ router.post('/internal', authenticateInternal, NotificationsController.createNot
 // Obtener todas las notificaciones del usuario (GET /notifications)
 router.get('/', authenticateToken, NotificationsController.getAllNotifications)
 
-// Eliminar una notificación (DELETE /notifications/:id)
-router.delete('/:id', authenticateToken, validateUserId, NotificationsController.deleteNotification)
-
-//Actualizar status de una notificación (PUT /notifications/:id/status)
-router.put('/:id/status', authenticateToken, validateUserId, NotificationsController.updateStatus)
-
-// Eliminar todas las notificaciones del usuario
-router.delete('/all', authenticateToken, NotificationsController.deleteAllNotifications)
 export default router
