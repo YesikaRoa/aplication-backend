@@ -59,7 +59,7 @@ export const NotificationModel = {
   },
   async deleteAllByUserId(userId) {
     try {
-      if (!userId) throw createError('INVALID_ID')
+      if (!userId || isNaN(userId) || userId <= 0) throw createError('INVALID_ID')
       await db.query(`DELETE FROM notification WHERE user_id = $1`, [userId])
       return true
     } catch (error) {
