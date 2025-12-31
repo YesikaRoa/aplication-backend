@@ -17,6 +17,10 @@ export const authenticateToken = (req, res, next) => {
       return next(createError('INVALID_TOKEN'))
     }
 
+    if (!user || !user.id) {
+      return next(createError('INVALID_TOKEN'))
+    }
+
     req.user = user // Información del usuario decodificada
     next()
   })
@@ -32,6 +36,10 @@ export const renewToken = (req, res, next) => {
 
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
     if (err) {
+      return next(createError('INVALID_TOKEN'))
+    }
+
+    if (!user || !user.id) {
       return next(createError('INVALID_TOKEN'))
     }
 
