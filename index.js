@@ -12,7 +12,6 @@ import notificationsRoutes from './routes/notifications.route.js'
 import dashboardRoutes from './routes/dashboard.route.js'
 import medicalRecord from './routes/medicalRecord.route.js'
 import medicalRecordPdf from './routes/pdf.route.js'
-
 import { errorHandler } from './middlewares/errorHandler.js'
 const app = express()
 

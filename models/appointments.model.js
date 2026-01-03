@@ -285,6 +285,35 @@ const getProfessionals = async (search = '', limit = 5) => {
   const { rows } = await db.query(query, [`%${search}%`, parseInt(limit)])
   return rows
 }
+const getAppointmentsForReminders = async () => {
+  const query = `
+    SELECT
+      a.id AS appointment_id,
+      u.id AS professional_user_id,
+      a.scheduled_at
+    FROM appointment a
+    JOIN professional p ON p.id = a.professional_id
+    JOIN users u ON u.id = p.user_id
+    WHERE
+      a.status = 'confirmed'
+      AND a.reminder_sent = false
+      AND a.scheduled_at BETWEEN NOW() + INTERVAL '55 minutes'
+                              AND NOW() + INTERVAL '65 minutes'
+  `
+  const { rows } = await db.query(query)
+  return rows
+}
+
+const markReminderSent = async (appointmentId) => {
+  const { rowCount } = await db.query(
+    `UPDATE appointment
+     SET reminder_sent = true, updated_at = NOW()
+     WHERE id = $1`,
+    [appointmentId],
+  )
+
+  if (rowCount === 0) throw createError('RECORD_NOT_FOUND')
+}
 
 export const AppointmentsModel = {
   createAppointmentModel,
@@ -295,4 +324,6 @@ export const AppointmentsModel = {
   getCities,
   getPatients,
   getProfessionals,
+  getAppointmentsForReminders,
+  markReminderSent,
 }

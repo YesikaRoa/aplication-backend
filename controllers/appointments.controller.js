@@ -82,7 +82,7 @@ const changeStatus = async (req, res, next) => {
     const { status } = req.body
 
     const updatedAppointment = await AppointmentsModel.updateAppointment(id, { status })
-
+    const changedBy = req.user.role === 1 ? 'admin' : 'professional'
     try {
       await axios.post(process.env.LAMBDA_URL, {
         module: 'appointments',
@@ -91,6 +91,7 @@ const changeStatus = async (req, res, next) => {
           appointment_id: updatedAppointment.id,
           new_status: status,
           professional_user_id: updatedAppointment.professional_user_id,
+          changed_by: changedBy,
         },
       })
     } catch (err) {

@@ -5,6 +5,10 @@ import { validateUserId } from '../middlewares/validateParams.js'
 import { createNotificationSchema } from '../schemas/notifications.schema.js'
 import { validateSchema } from '../middlewares/validateSchema.js'
 import { authenticateInternal } from '../middlewares/authInternal.js'
+import {
+  getAppointmentsForReminders,
+  markReminderSent,
+} from '../controllers/appointmentsNotifications.controller.js'
 const router = Router()
 
 // Eliminar todas las notificaciones del usuario
@@ -27,5 +31,8 @@ router.post('/internal', authenticateInternal, NotificationsController.createNot
 
 // Obtener todas las notificaciones del usuario (GET /notifications)
 router.get('/', authenticateToken, NotificationsController.getAllNotifications)
+
+router.get('/internal/reminders', authenticateInternal, getAppointmentsForReminders)
+router.post('/internal/:id/mark-reminder', authenticateInternal, markReminderSent)
 
 export default router
