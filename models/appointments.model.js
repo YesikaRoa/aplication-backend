@@ -296,7 +296,7 @@ const getAppointmentsForReminders = async () => {
     JOIN users u ON u.id = p.user_id
  WHERE
    a.status = 'confirmed'
-   AND a."reminder_sent" = false
+   AND a.reminder_sent=false
     AND a.scheduled_at <= (NOW() + INTERVAL '60 minutes')
     AND a.scheduled_at > NOW()
   `
