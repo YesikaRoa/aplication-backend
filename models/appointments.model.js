@@ -294,11 +294,13 @@ const getAppointmentsForReminders = async () => {
     FROM appointment a
     JOIN professional p ON p.id = a.professional_id
     JOIN users u ON u.id = p.user_id
-    WHERE
-      a.status = 'confirmed'
-      AND a.reminder_sent = false
-      AND a.scheduled_at BETWEEN NOW() + INTERVAL '55 minutes'
-                              AND NOW() + INTERVAL '65 minutes'
+   WHERE
+     a.status = 'confirmed'
+     AND a.reminder_sent = false
+  -- Busca citas que ocurran en los próximos 60 minutos
+    AND a.scheduled_at <= (NOW() + INTERVAL '60 minutes')
+  -- Y que no hayan pasado ya (opcional, por seguridad)
+    AND a.scheduled_at > NOW()
   `
   const { rows } = await db.query(query)
   return rows
