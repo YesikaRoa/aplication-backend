@@ -19,8 +19,8 @@ const getDashboardStats = async (user_id, role) => {
       FROM appointment a
       WHERE a.status = 'completed'
         ${profCondition}
-        AND a.scheduled_at >= date_trunc('month', NOW() - INTERVAL '1 month')
-        AND a.scheduled_at < date_trunc('month', NOW());
+        AND (a.scheduled_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Caracas') >= date_trunc('month', (NOW() AT TIME ZONE 'America/Caracas') - INTERVAL '1 month')
+        AND (a.scheduled_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Caracas') < date_trunc('month', NOW() AT TIME ZONE 'America/Caracas');
     `)
 
     // 2. Nuevos pacientes esta semana
@@ -29,7 +29,7 @@ const getDashboardStats = async (user_id, role) => {
       FROM appointment a
       WHERE a.status = 'confirmed'
         ${profCondition}
-        AND a.scheduled_at >= DATE_TRUNC('week', NOW());
+        AND (a.scheduled_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Caracas') >= DATE_TRUNC('week', NOW() AT TIME ZONE 'America/Caracas');
     `)
 
     // --- CAMBIOS PARA PROFESSIONAL ---
@@ -48,8 +48,8 @@ const getDashboardStats = async (user_id, role) => {
           SELECT COUNT(*) AS today_appointments
           FROM appointment a
           WHERE a.status = 'confirmed'
-          AND a.scheduled_at >= $1  
-          AND a.scheduled_at < $2   
+          AND (a.scheduled_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Caracas') >= $1  
+          AND (a.scheduled_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Caracas') < $2   
           ${profCondition};
       `,
         [startOfDay, startOfNextDay],
@@ -72,8 +72,8 @@ const getDashboardStats = async (user_id, role) => {
         
         -- [Lógica para obtener el nombre del día se mantiene igual]
         CROSS JOIN LATERAL (
-            SELECT (EXTRACT(DOW FROM date_trunc('week', NOW()))::int) AS start_dow_num,
-                  date_trunc('week', NOW())::date AS start_date
+            SELECT (EXTRACT(DOW FROM date_trunc('week', NOW() AT TIME ZONE 'America/Caracas'))::int) AS start_dow_num,
+                  date_trunc('week', NOW() AT TIME ZONE 'America/Caracas')::date AS start_date
         ) AS s
         CROSS JOIN LATERAL (
             SELECT TRIM(TO_CHAR(s.start_date + (w.day_of_week_num - s.start_dow_num) * INTERVAL '1 day', 'Day')) AS day_name
@@ -81,9 +81,9 @@ const getDashboardStats = async (user_id, role) => {
         
         -- 3. Hacemos LEFT JOIN con las citas
         LEFT JOIN appointment a ON 
-            a.scheduled_at >= date_trunc('week', NOW())
-            AND a.scheduled_at < date_trunc('week', NOW()) + INTERVAL '7 days'
-            AND EXTRACT(DOW FROM a.scheduled_at) = w.day_of_week_num
+            (a.scheduled_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Caracas') >= date_trunc('week', NOW() AT TIME ZONE 'America/Caracas')
+            AND (a.scheduled_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Caracas') < date_trunc('week', NOW() AT TIME ZONE 'America/Caracas') + INTERVAL '7 days'
+            AND EXTRACT(DOW FROM (a.scheduled_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Caracas')) = w.day_of_week_num
             -- El filtro global ahora incluye ambos estatus en la unión para optimización
             AND a.status IN ('confirmed', 'completed') 
             ${profCondition}
@@ -142,7 +142,7 @@ const getDashboardStats = async (user_id, role) => {
     // Resumen citas por mes (igual para ambos roles)
     const appointmentsByMonth = await db.query(`
       SELECT 
-        TO_CHAR(a.scheduled_at, 'YYYY-MM') AS month,
+        TO_CHAR((a.scheduled_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Caracas'), 'YYYY-MM') AS month,
         a.status,
         COUNT(*) AS count
       FROM appointment a
@@ -207,7 +207,7 @@ const getDashboardStats = async (user_id, role) => {
         CONCAT(u_p.first_name, ' ', u_p.last_name) AS patient,
         CONCAT(u_prof.first_name, ' ', u_prof.last_name) AS professional,
         c.name AS city,
-        a.scheduled_at,
+        (a.scheduled_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Caracas') AS scheduled_at,
         a.status
       FROM appointment a
       JOIN patient p ON p.id = a.patient_id
