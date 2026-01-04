@@ -7,10 +7,18 @@ export const NotificationModel = {
   async getAllByUserId(userId) {
     try {
       if (!userId) throw createError('INVALID_ID')
+
       const { rows } = await db.query(
-        `SELECT ${NOTIFICATION_FIELDS} FROM notification WHERE user_id = $1 ORDER BY created_at DESC`,
+        `
+        SELECT ${NOTIFICATION_FIELDS}
+        FROM notification
+        WHERE user_id = $1
+          AND status = 'unread'
+        ORDER BY created_at DESC
+      `,
         [userId],
       )
+
       return rows
     } catch (error) {
       if (error.status && error.message) throw error
@@ -51,12 +59,24 @@ export const NotificationModel = {
     }
   },
   async updateStatus(id, userId, status) {
-    await db.query(
-      `UPDATE notification SET status = $1, updated_at = NOW()
-     WHERE id = $2 AND user_id = $3`,
+    if (!id || !userId) throw createError('INVALID_ID')
+
+    const { rowCount } = await db.query(
+      `
+    UPDATE notification
+    SET status = $1, updated_at = NOW()
+    WHERE id = $2 AND user_id = $3
+    `,
       [status, id, userId],
     )
+
+    if (rowCount === 0) {
+      throw createError('RECORD_NOT_FOUND')
+    }
+
+    return true
   },
+
   async deleteAllByUserId(userId) {
     try {
       if (!userId || isNaN(userId) || userId <= 0) throw createError('INVALID_ID')

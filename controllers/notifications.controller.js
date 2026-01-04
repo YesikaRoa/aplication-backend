@@ -61,12 +61,12 @@ const updateStatus = async (req, res, next) => {
     const { id } = req.params
     const { status } = req.body
 
-    // Validar que el status sea válido
     if (!['read', 'unread'].includes(status)) {
       return res.status(400).json({ message: 'Status inválido' })
     }
 
-    await NotificationModel.updateStatus(id, userId, status)
+    await NotificationModel.updateStatus(Number(id), userId, status)
+
     res.json({ success: true })
   } catch (error) {
     next(error)

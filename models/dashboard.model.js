@@ -39,21 +39,20 @@ const getDashboardStats = async (user_id, role) => {
     let todayAppointments = null
 
     if (role === 3) {
-      const now = new Date()
-      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-      const startOfNextDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
       // CARD — Citas programadas para hoy
       const today = await db.query(
         `
-          SELECT COUNT(*) AS today_appointments
-          FROM appointment a
-          WHERE a.status = 'confirmed'
-          AND (a.scheduled_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Caracas') >= $1  
-          AND (a.scheduled_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Caracas') < $2   
-          ${profCondition};
+        SELECT COUNT(*) AS today_appointments
+        FROM appointment a
+        WHERE a.status = 'confirmed'
+        ${profCondition}
+        AND (a.scheduled_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Caracas')
+            >= date_trunc('day', NOW() AT TIME ZONE 'America/Caracas')
+        AND (a.scheduled_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Caracas')
+            < date_trunc('day', NOW() AT TIME ZONE 'America/Caracas') + INTERVAL '1 day';
+
       `,
-        [startOfDay, startOfNextDay],
-      ) // Asegúrate de pasar las variables en el array
+      )
 
       todayAppointments = parseInt(today.rows[0].today_appointments || 0)
 
