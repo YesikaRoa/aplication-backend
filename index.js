@@ -17,9 +17,15 @@ const app = express()
 
 app.use(
   cors({
-    origin: ['http://localhost:3002', 'https://medipanel.netlify.app'],
+    origin: ['https://medipanel.netlify.app', 'http://localhost:5173'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
   }),
 )
+
+// Permitir preflight en todas las rutas
+app.options('*', cors())
 
 app.use(express.json({ limit: '10mb' }))
 
