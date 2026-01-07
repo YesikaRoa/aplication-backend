@@ -17,7 +17,7 @@ const app = express()
 
 app.use(
   cors({
-    origin: ['https://medipanel.netlify.app', 'http://localhost:5173'],
+    origin: ['https://medipanel.netlify.app', 'http://localhost:3002'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
