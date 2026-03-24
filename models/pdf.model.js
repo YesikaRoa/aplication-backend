@@ -261,7 +261,7 @@ const getPatientsByLoggedUser = async (user_id) => {
         SELECT 1 FROM medical_record mr
         WHERE mr.patient_id = p.id AND mr.professional_id = $1
       )
-      ORDER BY u.first_name ASC
+      ORDER BY full_name ASC
     `,
     values: [professional_id],
   }

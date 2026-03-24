@@ -7,6 +7,7 @@ const getAllMedicalRecords = async (userId, roleId) => {
     text: `
       SELECT 
         mr.id, 
+        mr.patient_id,
         (u_patient.first_name || ' ' || u_patient.last_name) AS patient_full_name, 
         (u_professional.first_name || ' ' || u_professional.last_name) AS professional_full_name, 
         a.scheduled_at, 
@@ -40,6 +41,7 @@ const getMedicalRecordById = async (id) => {
     text: `
       SELECT 
         mr.id,
+        mr.patient_id,
         mr.general_notes,
         mr.image,
         mr.created_at,
