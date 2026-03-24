@@ -246,10 +246,10 @@ const getPatientsByLoggedUser = async (user_id) => {
   const patientQuery = {
     text: `
       SELECT DISTINCT p.id, CONCAT(u.first_name, ' ', u.last_name) AS full_name
-      FROM appointment a
-      JOIN patient p ON a.patient_id = p.id
+      FROM medical_record mr
+      JOIN patient p ON mr.patient_id = p.id
       JOIN users u ON p.user_id = u.id
-      WHERE a.professional_id = $1
+      WHERE mr.professional_id = $1
     `,
     values: [professional_id],
   }
