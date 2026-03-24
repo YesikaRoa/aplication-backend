@@ -19,7 +19,7 @@ app.use(
   cors({
     origin: ['https://medipanel.netlify.app', 'http://localhost:3002'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'responsetype'],
     credentials: true,
   }),
 )

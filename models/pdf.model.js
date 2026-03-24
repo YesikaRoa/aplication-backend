@@ -6,6 +6,10 @@ import { createError } from '../utils/errors.js'
 import axios from 'axios'
 
 const generateMedicalHistoryPDF = async ({ patient_id, user_id, outputPath }) => {
+  // Convertir patient_id a entero para evitar errores de tipo en la query
+  const patientIdInt = parseInt(patient_id, 10)
+  if (isNaN(patientIdInt)) throw createError('INVALID_ID')
+
   // 1. Obtener el professional_id a partir del user_id
   const profQuery = {
     text: `SELECT id, user_id FROM professional WHERE user_id = $1`,
@@ -29,10 +33,10 @@ const generateMedicalHistoryPDF = async ({ patient_id, user_id, outputPath }) =>
       WHERE mr.patient_id = $1 AND mr.professional_id = $2
       ORDER BY mr.created_at ASC
     `,
-    values: [patient_id, professional_id],
+    values: [patientIdInt, professional_id],
   }
   const { rows } = await db.query(query)
-  if (!rows.length) throw createError('NO_MEDICAL_RECORDS_FOUND')
+  if (!rows.length) throw createError('MEDICAL_RECORD_NOT_FOUND')
 
   // ---------------------
   // ⚠️ NUEVO: función para header repetido
@@ -161,12 +165,16 @@ const generateMedicalHistoryPDF = async ({ patient_id, user_id, outputPath }) =>
       if (record.image.startsWith('http')) {
         try {
           const response = await axios.get(record.image, { responseType: 'arraybuffer' })
-          const imgBuffer = Buffer.from(response.data, 'binary')
+          // Buffer.from con arraybuffer NO necesita encoding — pasarlo directo
+          const imgBuffer = Buffer.from(response.data)
           doc.moveDown(0.5)
           doc.image(imgBuffer, { width: 100, height: 100 })
           doc.moveDown(0.5)
         } catch (e) {
-          doc.text('Imagen no encontrada o inaccesible.', { italic: true })
+          console.error('Error cargando imagen del registro médico:', e.message)
+          doc.moveDown(0.5)
+          doc.fontSize(10).fillColor('#888').text('[Imagen no disponible]')
+          doc.moveDown(0.5)
         }
       } else {
         const imagePath = path.isAbsolute(record.image)
@@ -243,13 +251,17 @@ const getPatientsByLoggedUser = async (user_id) => {
   if (!profRows || !profRows[0]) throw createError('PROFESSIONAL_NOT_FOUND')
   const professional_id = profRows[0].id
 
+  // Solo retorna pacientes que tienen al menos un medical_record con este profesional
   const patientQuery = {
     text: `
-      SELECT DISTINCT p.id, CONCAT(u.first_name, ' ', u.last_name) AS full_name
-      FROM medical_record mr
-      JOIN patient p ON mr.patient_id = p.id
+      SELECT p.id, CONCAT(u.first_name, ' ', u.last_name) AS full_name
+      FROM patient p
       JOIN users u ON p.user_id = u.id
-      WHERE mr.professional_id = $1
+      WHERE EXISTS (
+        SELECT 1 FROM medical_record mr
+        WHERE mr.patient_id = p.id AND mr.professional_id = $1
+      )
+      ORDER BY u.first_name ASC
     `,
     values: [professional_id],
   }
