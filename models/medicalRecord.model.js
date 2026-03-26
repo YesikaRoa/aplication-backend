@@ -12,9 +12,32 @@ const getAllMedicalRecords = async (userId, roleId) => {
         (u_professional.first_name || ' ' || u_professional.last_name) AS professional_full_name, 
         a.scheduled_at, 
         mr.appointment_id,
+        mr.reason_for_visit,
+        mr.current_illness_history,
+        mr.symptoms,
+        mr.physical_exam,
+        mr.weight,
+        mr.height,
+        mr.body_mass_index,
+        mr.blood_pressure,
+        mr.heart_rate,
+        mr.respiratory_rate,
+        mr.temperature,
+        mr.oxygen_saturation,
+        mr.diagnosis,
+        mr.differential_diagnosis,
+        mr.treatment,
+        mr.treatment_plan,
+        mr.medications_prescribed,
+        mr.laboratory_tests_requested,
+        mr.imaging_tests_requested,
+        mr.test_instructions,
+        mr.follow_up_date,
+        mr.evolution_notes,
         mr.general_notes, 
         mr.image,
-        mr.created_at 
+        mr.created_at, 
+        mr.updated_at
       FROM medical_record mr
       INNER JOIN patient p ON mr.patient_id = p.id
       INNER JOIN "users" u_patient ON p.user_id = u_patient.id
@@ -42,6 +65,28 @@ const getMedicalRecordById = async (id) => {
       SELECT 
         mr.id,
         mr.patient_id,
+        mr.reason_for_visit,
+        mr.current_illness_history,
+        mr.symptoms,
+        mr.physical_exam,
+        mr.weight,
+        mr.height,
+        mr.body_mass_index,
+        mr.blood_pressure,
+        mr.heart_rate,
+        mr.respiratory_rate,
+        mr.temperature,
+        mr.oxygen_saturation,
+        mr.diagnosis,
+        mr.differential_diagnosis,
+        mr.treatment,
+        mr.treatment_plan,
+        mr.medications_prescribed,
+        mr.laboratory_tests_requested,
+        mr.imaging_tests_requested,
+        mr.test_instructions,
+        mr.follow_up_date,
+        mr.evolution_notes,
         mr.general_notes,
         mr.image,
         mr.created_at,
@@ -80,6 +125,28 @@ const createMedicalRecord = async ({
   appointment_id,
   general_notes,
   image, // Imagen en formato Base64 o URL
+  reason_for_visit,
+  current_illness_history,
+  symptoms,
+  physical_exam,
+  weight,
+  height,
+  body_mass_index,
+  blood_pressure,
+  heart_rate,
+  respiratory_rate,
+  temperature,
+  oxygen_saturation,
+  diagnosis,
+  differential_diagnosis,
+  treatment,
+  treatment_plan,
+  medications_prescribed,
+  laboratory_tests_requested,
+  imaging_tests_requested,
+  test_instructions,
+  follow_up_date,
+  evolution_notes,
 }) => {
   // Verificar si el paciente existe
   const patientExists = await checkExists('patient', patient_id)
@@ -104,11 +171,48 @@ const createMedicalRecord = async ({
   // Crear el registro médico si las verificaciones pasaron
   const query = {
     text: `
-      INSERT INTO medical_record (patient_id, professional_id, appointment_id, general_notes, image, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+      INSERT INTO medical_record (
+        patient_id, professional_id, appointment_id, general_notes, image, 
+        reason_for_visit, current_illness_history, symptoms, physical_exam,
+        weight, height, body_mass_index, blood_pressure, heart_rate,
+        respiratory_rate, temperature, oxygen_saturation, diagnosis,
+        differential_diagnosis, treatment, treatment_plan, medications_prescribed,
+        laboratory_tests_requested, imaging_tests_requested, test_instructions,
+        follow_up_date, evolution_notes,
+        created_at, updated_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, NOW(), NOW())
       RETURNING *
     `,
-    values: [patient_id, professional_id, appointment_id, general_notes, imageUrl],
+    values: [
+      patient_id,
+      professional_id,
+      appointment_id,
+      general_notes,
+      imageUrl,
+      reason_for_visit,
+      current_illness_history,
+      symptoms,
+      physical_exam,
+      weight,
+      height,
+      body_mass_index,
+      blood_pressure,
+      heart_rate,
+      respiratory_rate,
+      temperature,
+      oxygen_saturation,
+      diagnosis,
+      differential_diagnosis,
+      treatment,
+      treatment_plan,
+      medications_prescribed,
+      laboratory_tests_requested,
+      imaging_tests_requested,
+      test_instructions,
+      follow_up_date,
+      evolution_notes,
+    ],
   }
   const { rows } = await db.query(query)
   return rows[0]

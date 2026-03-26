@@ -43,7 +43,7 @@ const generateMedicalHistoryPDF = async ({ patient_id, user_id, outputPath }) =>
   // ---------------------
   const addHeader = (doc) => {
     const navyBlue = '#002855'
-    const logoPath = path.join(process.cwd(), 'src', 'image', '6.png')
+    const logoPath = path.join(process.cwd(), 'src', 'image', 'Logo-mediPanel.png')
 
     if (fs.existsSync(logoPath)) {
       doc.image(logoPath, 50, 20, { width: 150 })
@@ -53,7 +53,7 @@ const generateMedicalHistoryPDF = async ({ patient_id, user_id, outputPath }) =>
       .fillColor(navyBlue)
       .fontSize(14)
       .text(
-        'Transformar vidas comienza con una atención de calidad, brindada con compromiso y empatía.',
+        'Transforming lives begins with quality care, delivered with dedication and empathy.',
         150,
         40,
         { align: 'right', width: doc.page.width - 200 },
@@ -91,10 +91,10 @@ const generateMedicalHistoryPDF = async ({ patient_id, user_id, outputPath }) =>
     .moveDown(2)
     .fontSize(24)
     .fillColor(navyBlue)
-    .text('Historial Médico', 51, doc.y, { align: 'center', underline: true })
+    .text('Medical History', 51, doc.y, { align: 'center', underline: true })
   doc.moveDown(1.5)
 
-  const label = 'Paciente:'
+  const label = 'Patient:'
   const labelX = 50
   const labelY = doc.y
 
@@ -146,59 +146,153 @@ const generateMedicalHistoryPDF = async ({ patient_id, user_id, outputPath }) =>
     doc
       .fontSize(14)
       .fillColor(navyBlue)
-      .text(`Registro #${idx + 1}`, 90, filaTop, { underline: true })
-    doc.fontSize(11).fillColor('#000')
-    doc.moveDown(0.5)
-    doc.font('Helvetica-Bold').text('Fecha:', 90, undefined, { continued: true })
-    doc.font('Helvetica').text(` ${new Date(record.created_at).toLocaleString()}`)
+      .text(`Record #${idx + 1}`, 90, filaTop, { underline: true })
+    doc.fontSize(10).fillColor('#444')
+    doc.moveDown(0.3)
+    doc.font('Helvetica-Bold').text('Date: ', 90, undefined, { continued: true })
+    doc.font('Helvetica').text(`${new Date(record.created_at).toLocaleString()}`)
 
-    doc.moveDown(0.5)
+    const labelWidth = 110 // Fixed width for labels to align values
 
-    doc.font('Helvetica-Bold').text('Notas:', 90, undefined, { continued: true })
-    doc.font('Helvetica').text(` ${record.general_notes || 'Sin notas'}`)
+    // Helper to render a field with alignment
+    const renderField = (label, value) => {
+      if (value) {
+        doc.moveDown(0.2)
+        const currentY = doc.y
+        doc.font('Helvetica-Bold').text(`${label}:`, 90, currentY, { width: labelWidth })
+        doc.font('Helvetica').text(String(value), 90 + labelWidth, currentY, {
+          width: doc.page.width - 150 - labelWidth,
+          align: 'justify',
+        })
+      }
+    }
 
-    doc.y = Math.max(doc.y, filaTop + circleSize + 5)
+    // Helper to render a section header
+    const renderHeader = (title) => {
+      ensureSpace(doc, 40)
+      doc.moveDown(0.8)
+      doc.font('Helvetica-Bold').fontSize(11).fillColor(navyBlue).text(title, 90)
+      doc.moveDown(0.2)
+      doc.fontSize(10).fillColor('#333')
+    }
+
+    // --- Motivo y Síntomas ---
+    if (record.reason_for_visit || record.current_illness_history || record.symptoms) {
+      renderHeader('Reason for Visit & Symptoms')
+      renderField('Reason', record.reason_for_visit)
+      renderField('History', record.current_illness_history)
+      renderField('Symptoms', record.symptoms)
+    }
+
+    // --- Examen Físico y Signos Vitales ---
+    const hasVitals =
+      record.weight ||
+      record.height ||
+      record.body_mass_index ||
+      record.blood_pressure ||
+      record.heart_rate ||
+      record.respiratory_rate ||
+      record.temperature ||
+      record.oxygen_saturation
+    if (record.physical_exam || hasVitals) {
+      renderHeader('Physical Exam & Vital Signs')
+      renderField('Physical Exam', record.physical_exam)
+
+      if (hasVitals) {
+        doc.moveDown(0.3)
+        const vitals = []
+        if (record.weight) vitals.push(`Weight: ${record.weight} kg`)
+        if (record.height) vitals.push(`Height: ${record.height} cm`)
+        if (record.body_mass_index) vitals.push(`BMI: ${record.body_mass_index}`)
+        if (record.blood_pressure) vitals.push(`B.P.: ${record.blood_pressure}`)
+        if (record.heart_rate) vitals.push(`H.R.: ${record.heart_rate} bpm`)
+        if (record.respiratory_rate) vitals.push(`R.R.: ${record.respiratory_rate} rpm`)
+        if (record.temperature) vitals.push(`Temp: ${record.temperature} °C`)
+        if (record.oxygen_saturation) vitals.push(`SpO2: ${record.oxygen_saturation}%`)
+        doc.font('Helvetica').fontSize(9).text(vitals.join('  |  '), 90)
+      }
+    }
+
+    // --- Diagnóstico ---
+    if (record.diagnosis || record.differential_diagnosis) {
+      renderHeader('Diagnosis')
+      renderField('Diagnosis', record.diagnosis)
+      renderField('Diff. Diagnosis', record.differential_diagnosis)
+    }
+
+    // --- Tratamiento ---
+    if (record.treatment || record.treatment_plan || record.medications_prescribed) {
+      renderHeader('Treatment & Plan')
+      renderField('Treatment', record.treatment)
+      renderField('Plan', record.treatment_plan)
+      renderField('Medications', record.medications_prescribed)
+    }
+
+    // --- Estudios Solicitados ---
+    if (
+      record.laboratory_tests_requested ||
+      record.imaging_tests_requested ||
+      record.test_instructions
+    ) {
+      renderHeader('Requested Studies')
+      renderField('Laboratory', record.laboratory_tests_requested)
+      renderField('Imaging', record.imaging_tests_requested)
+      renderField('Instructions', record.test_instructions)
+    }
+
+    // --- Seguimiento y Notas ---
+    renderHeader('Follow-up & Notes')
+    if (record.follow_up_date) {
+      renderField('Next Appoint.', new Date(record.follow_up_date).toLocaleDateString())
+    }
+    renderField('Evolution', record.evolution_notes)
+    renderField('General Notes', record.general_notes || 'No notes')
+
+    // Espacio antes de la imagen para asegurar que no quede huérfana
+    const contentEndY = doc.y
 
     // Imagen asociada
     if (record.image) {
-      ensureSpace(doc, 160)
+      ensureSpace(doc, 120)
+      doc.moveDown(0.5)
       if (record.image.startsWith('http')) {
         try {
           const response = await axios.get(record.image, { responseType: 'arraybuffer' })
-          // Buffer.from con arraybuffer NO necesita encoding — pasarlo directo
           const imgBuffer = Buffer.from(response.data)
-          doc.moveDown(0.5)
-          doc.image(imgBuffer, { width: 100, height: 100 })
-          doc.moveDown(0.5)
+          doc.image(imgBuffer, { width: 150 }) // Ajustado tamaño
         } catch (e) {
-          console.error('Error cargando imagen del registro médico:', e.message)
-          doc.moveDown(0.5)
-          doc.fontSize(10).fillColor('#888').text('[Imagen no disponible]')
-          doc.moveDown(0.5)
+          console.error('Error cargando imagen:', e.message)
+          doc.fontSize(10).fillColor('#888').text('[Image not available]', 90)
         }
       } else {
         const imagePath = path.isAbsolute(record.image)
           ? record.image
           : path.join(process.cwd(), record.image)
         if (fs.existsSync(imagePath)) {
-          doc.moveDown(0.5)
-          doc.image(imagePath, { width: 180 })
-          doc.moveDown(0.5)
-        } else {
-          doc.text('Imagen no encontrada.', { italic: true })
+          doc.image(imagePath, { width: 150 })
         }
       }
+      doc.moveDown(1)
     }
 
-    doc.moveDown(1)
+    // Línea separadora suave al final del registro si no es el último
+    if (idx < rows.length - 1) {
+      doc.moveDown(1)
+      doc
+        .moveTo(50, doc.y)
+        .lineTo(doc.page.width - 50, doc.y)
+        .strokeColor('#EEE')
+        .stroke()
+      doc.moveDown(1)
+    }
 
-    doc.moveDown(1)
+    doc.y = Math.max(doc.y, filaTop + circleSize + 10)
   }
 
   doc.text('')
 
   // Pie de página
-  const sealPath = path.join(process.cwd(), 'src', 'image', 'CERTIFICADO MÉDICO.png')
+  const sealPath = path.join(process.cwd(), 'src', 'image', 'Sello-mediPanel.png')
   const sealWidth = 110
   const lineWidth = 150
   const lineX = (doc.page.width - lineWidth) / 2
@@ -214,7 +308,7 @@ const generateMedicalHistoryPDF = async ({ patient_id, user_id, outputPath }) =>
   doc
     .fontSize(12)
     .fillColor('#002855')
-    .text('Professional de la salud:', lineX, signatureLineY + 20, {
+    .text('Healthcare professional:', lineX, signatureLineY + 20, {
       align: 'center',
       width: lineWidth,
     })

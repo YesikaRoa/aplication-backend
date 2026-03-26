@@ -24,14 +24,64 @@ const getMedicalRecordById = async (req, res, next) => {
 
 const createMedicalRecord = async (req, res, next) => {
   try {
-    const { patient_id, professional_id, appointment_id, general_notes, image } = req.body
+    const {
+      patient_id,
+      professional_id,
+      appointment_id,
+      general_notes,
+      image,
+      reason_for_visit,
+      current_illness_history,
+      symptoms,
+      physical_exam,
+      weight,
+      height,
+      body_mass_index,
+      blood_pressure,
+      heart_rate,
+      respiratory_rate,
+      temperature,
+      oxygen_saturation,
+      diagnosis,
+      differential_diagnosis,
+      treatment,
+      treatment_plan,
+      medications_prescribed,
+      laboratory_tests_requested,
+      imaging_tests_requested,
+      test_instructions,
+      follow_up_date,
+      evolution_notes,
+    } = req.body
 
     const newMedicalRecord = await MedicalRecordModel.createMedicalRecord({
       patient_id,
       professional_id,
       appointment_id,
       general_notes,
-      image, // Imagen enviada desde el cliente
+      image,
+      reason_for_visit,
+      current_illness_history,
+      symptoms,
+      physical_exam,
+      weight,
+      height,
+      body_mass_index,
+      blood_pressure,
+      heart_rate,
+      respiratory_rate,
+      temperature,
+      oxygen_saturation,
+      diagnosis,
+      differential_diagnosis,
+      treatment,
+      treatment_plan,
+      medications_prescribed,
+      laboratory_tests_requested,
+      imaging_tests_requested,
+      test_instructions,
+      follow_up_date,
+      evolution_notes,
     })
 
     res.status(201).json({ message: 'Registro médico creado', medicalRecord: newMedicalRecord })
