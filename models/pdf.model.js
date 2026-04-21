@@ -178,7 +178,7 @@ const generateMedicalHistoryPDF = async ({ patient_id, user_id, outputPath }) =>
           width: textWidth,
           align: 'justify',
         })
-        
+
         // Espaciado extra al final de cada resultado para permitir respirar al campo
         doc.y += 6
       }
@@ -239,7 +239,7 @@ const generateMedicalHistoryPDF = async ({ patient_id, user_id, outputPath }) =>
       renderField('Diff. Diagnosis', record.differential_diagnosis)
       doc.y += 20
     }
-
+    doc.text('')
     // --- Tratamiento ---
     if (record.treatment || record.treatment_plan || record.medications_prescribed) {
       renderHeader('Treatment & Plan')
@@ -248,7 +248,7 @@ const generateMedicalHistoryPDF = async ({ patient_id, user_id, outputPath }) =>
       renderField('Medications', record.medications_prescribed)
       doc.y += 20
     }
-
+    doc.text('')
     // --- Estudios Solicitados ---
     if (
       record.laboratory_tests_requested ||
@@ -261,7 +261,7 @@ const generateMedicalHistoryPDF = async ({ patient_id, user_id, outputPath }) =>
       renderField('Instructions', record.test_instructions)
       doc.y += 20
     }
-
+    doc.text('')
     // --- Seguimiento y Notas ---
     renderHeader('Follow-up & Notes')
     if (record.follow_up_date) {
@@ -270,10 +270,10 @@ const generateMedicalHistoryPDF = async ({ patient_id, user_id, outputPath }) =>
     renderField('Evolution', record.evolution_notes)
     renderField('General Notes', record.general_notes || 'No notes')
     doc.y += 20
-
+    doc.text('')
     // Espacio antes de la imagen para asegurar que no quede huérfana
     const contentEndY = doc.y
-
+    doc.text('')
     // Imagen asociada
     if (record.image) {
       ensureSpace(doc, 120)
@@ -287,18 +287,18 @@ const generateMedicalHistoryPDF = async ({ patient_id, user_id, outputPath }) =>
           const imagePath = path.isAbsolute(record.image)
             ? record.image
             : path.join(process.cwd(), record.image)
-          
+
           if (fs.existsSync(imagePath)) {
             imgBuffer = fs.readFileSync(imagePath)
           }
         }
-        
+
         if (imgBuffer) {
           const convertedImgBuffer = await sharp(imgBuffer).png().toBuffer()
           // Establecer la posición 'x' fija a 90 para alinear con el texto.
           // Usar 'fit' para definir un ancho y alto máximo (ej. 250x250) sin distorsionar la imagen.
           doc.x = 90
-          doc.image(convertedImgBuffer, { 
+          doc.image(convertedImgBuffer, {
             fit: [250, 250],
             align: 'left'
           })
