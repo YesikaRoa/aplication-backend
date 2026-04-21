@@ -168,6 +168,10 @@ const generateMedicalHistoryPDF = async ({ patient_id, user_id, outputPath }) =>
         // Avoid orphaned labels by ensuring space for the whole block
         ensureSpace(doc, textHeight + 15)
 
+        // Restaurar tamaño de fuente y color original en caso de que ensureSpace haya provocado
+        // un page break (lo cual inyecta el Navy Blue grande del header de la página)
+        doc.fontSize(10).fillColor('#333')
+
         if (doc.y > 100) {
           doc.moveDown(0.2)
         }
@@ -227,7 +231,7 @@ const generateMedicalHistoryPDF = async ({ patient_id, user_id, outputPath }) =>
         if (record.respiratory_rate) vitals.push(`R.R.: ${record.respiratory_rate} rpm`)
         if (record.temperature) vitals.push(`Temp: ${record.temperature} °C`)
         if (record.oxygen_saturation) vitals.push(`SpO2: ${record.oxygen_saturation}%`)
-        doc.font('Helvetica').fontSize(9).text(vitals.join('  |  '), 90)
+        doc.font('Helvetica').fontSize(9).text(vitals.join('  |  '), 90 + labelWidth)
       }
       doc.y += 20
     }
