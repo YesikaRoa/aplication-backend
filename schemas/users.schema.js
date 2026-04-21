@@ -30,7 +30,7 @@ export const createUserSchema = z
       .min(6, 'Password must be at least 6 characters long')
       .nullable()
       .optional(), // ✅ permite null o undefined
-    address: z.string().max(50, 'Address cannot exceed 50 characters').optional(),
+    address: z.string().max(150, 'Address cannot exceed 150 characters').optional(),
     phone: z
       .string()
       .regex(/^\d{11}$/, 'Phone must be a valid 11-digit number (04127690000)')
@@ -154,7 +154,7 @@ export const updateUserSchema = z
     first_name: z.string().max(30, 'First name cannot exceed 30 characters').optional(),
     last_name: z.string().max(30, 'Last name cannot exceed 30 characters').optional(),
     email: z.string().email('Invalid email address').optional(),
-    address: z.string().max(50, 'Address cannot exceed 50 characters').optional(),
+    address: z.string().max(150, 'Address cannot exceed 150 characters').optional(),
     phone: z
       .string()
       .regex(/^\d{11}$/, 'Phone must be a valid 11-digit number')

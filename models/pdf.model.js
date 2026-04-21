@@ -4,6 +4,7 @@ import path from 'path'
 import { db } from '../database/connection.js'
 import { createError } from '../utils/errors.js'
 import axios from 'axios'
+import sharp from 'sharp'
 
 const generateMedicalHistoryPDF = async ({ patient_id, user_id, outputPath }) => {
   // Convertir patient_id a entero para evitar errores de tipo en la query
@@ -66,7 +67,9 @@ const generateMedicalHistoryPDF = async ({ patient_id, user_id, outputPath }) =>
   const ensureSpace = (doc, neededHeight = 150) => {
     const bottomMargin = 60
     if (doc.y + neededHeight > doc.page.height - bottomMargin) {
-      doc.addPage()
+      if (doc.y > 100) {
+        doc.addPage()
+      }
     }
   }
 
@@ -157,13 +160,27 @@ const generateMedicalHistoryPDF = async ({ patient_id, user_id, outputPath }) =>
     // Helper to render a field with alignment
     const renderField = (label, value) => {
       if (value) {
-        doc.moveDown(0.2)
+        const textStr = String(value)
+        doc.font('Helvetica').fontSize(10)
+        const textWidth = doc.page.width - 150 - labelWidth
+        const textHeight = doc.heightOfString(textStr, { width: textWidth, align: 'justify' })
+
+        // Avoid orphaned labels by ensuring space for the whole block
+        ensureSpace(doc, textHeight + 15)
+
+        if (doc.y > 100) {
+          doc.moveDown(0.2)
+        }
+
         const currentY = doc.y
         doc.font('Helvetica-Bold').text(`${label}:`, 90, currentY, { width: labelWidth })
-        doc.font('Helvetica').text(String(value), 90 + labelWidth, currentY, {
-          width: doc.page.width - 150 - labelWidth,
+        doc.font('Helvetica').text(textStr, 90 + labelWidth, currentY, {
+          width: textWidth,
           align: 'justify',
         })
+        
+        // Espaciado extra al final de cada resultado para permitir respirar al campo
+        doc.y += 6
       }
     }
 
@@ -172,7 +189,7 @@ const generateMedicalHistoryPDF = async ({ patient_id, user_id, outputPath }) =>
       ensureSpace(doc, 40)
       doc.moveDown(0.8)
       doc.font('Helvetica-Bold').fontSize(11).fillColor(navyBlue).text(title, 90)
-      doc.moveDown(0.2)
+      doc.y += 8
       doc.fontSize(10).fillColor('#333')
     }
 
@@ -182,6 +199,7 @@ const generateMedicalHistoryPDF = async ({ patient_id, user_id, outputPath }) =>
       renderField('Reason', record.reason_for_visit)
       renderField('History', record.current_illness_history)
       renderField('Symptoms', record.symptoms)
+      doc.y += 20
     }
 
     // --- Examen Físico y Signos Vitales ---
@@ -211,6 +229,7 @@ const generateMedicalHistoryPDF = async ({ patient_id, user_id, outputPath }) =>
         if (record.oxygen_saturation) vitals.push(`SpO2: ${record.oxygen_saturation}%`)
         doc.font('Helvetica').fontSize(9).text(vitals.join('  |  '), 90)
       }
+      doc.y += 20
     }
 
     // --- Diagnóstico ---
@@ -218,6 +237,7 @@ const generateMedicalHistoryPDF = async ({ patient_id, user_id, outputPath }) =>
       renderHeader('Diagnosis')
       renderField('Diagnosis', record.diagnosis)
       renderField('Diff. Diagnosis', record.differential_diagnosis)
+      doc.y += 20
     }
 
     // --- Tratamiento ---
@@ -226,6 +246,7 @@ const generateMedicalHistoryPDF = async ({ patient_id, user_id, outputPath }) =>
       renderField('Treatment', record.treatment)
       renderField('Plan', record.treatment_plan)
       renderField('Medications', record.medications_prescribed)
+      doc.y += 20
     }
 
     // --- Estudios Solicitados ---
@@ -238,6 +259,7 @@ const generateMedicalHistoryPDF = async ({ patient_id, user_id, outputPath }) =>
       renderField('Laboratory', record.laboratory_tests_requested)
       renderField('Imaging', record.imaging_tests_requested)
       renderField('Instructions', record.test_instructions)
+      doc.y += 20
     }
 
     // --- Seguimiento y Notas ---
@@ -247,6 +269,7 @@ const generateMedicalHistoryPDF = async ({ patient_id, user_id, outputPath }) =>
     }
     renderField('Evolution', record.evolution_notes)
     renderField('General Notes', record.general_notes || 'No notes')
+    doc.y += 20
 
     // Espacio antes de la imagen para asegurar que no quede huérfana
     const contentEndY = doc.y
@@ -255,35 +278,41 @@ const generateMedicalHistoryPDF = async ({ patient_id, user_id, outputPath }) =>
     if (record.image) {
       ensureSpace(doc, 120)
       doc.moveDown(0.5)
-      if (record.image.startsWith('http')) {
-        try {
+      try {
+        let imgBuffer
+        if (record.image.startsWith('http')) {
           const response = await axios.get(record.image, { responseType: 'arraybuffer' })
-          const imgBuffer = Buffer.from(response.data)
-          doc.image(imgBuffer, { width: 150 }) // Ajustado tamaño
-        } catch (e) {
-          console.error('Error cargando imagen:', e.message)
-          doc.fontSize(10).fillColor('#888').text('[Image not available]', 90)
+          imgBuffer = Buffer.from(response.data)
+        } else {
+          const imagePath = path.isAbsolute(record.image)
+            ? record.image
+            : path.join(process.cwd(), record.image)
+          
+          if (fs.existsSync(imagePath)) {
+            imgBuffer = fs.readFileSync(imagePath)
+          }
         }
-      } else {
-        const imagePath = path.isAbsolute(record.image)
-          ? record.image
-          : path.join(process.cwd(), record.image)
-        if (fs.existsSync(imagePath)) {
-          doc.image(imagePath, { width: 150 })
+        
+        if (imgBuffer) {
+          const convertedImgBuffer = await sharp(imgBuffer).png().toBuffer()
+          // Establecer la posición 'x' fija a 90 para alinear con el texto.
+          // Usar 'fit' para definir un ancho y alto máximo (ej. 250x250) sin distorsionar la imagen.
+          doc.x = 90
+          doc.image(convertedImgBuffer, { 
+            fit: [250, 250],
+            align: 'left'
+          })
         }
+      } catch (e) {
+        console.error('Error cargando imagen:', e.message)
+        doc.fontSize(10).fillColor('#888').text('[Image not available]', 90)
       }
       doc.moveDown(1)
     }
 
-    // Línea separadora suave al final del registro si no es el último
+    // Espacio al final del registro si no es el último (sin línea separadora)
     if (idx < rows.length - 1) {
-      doc.moveDown(1)
-      doc
-        .moveTo(50, doc.y)
-        .lineTo(doc.page.width - 50, doc.y)
-        .strokeColor('#EEE')
-        .stroke()
-      doc.moveDown(1)
+      doc.moveDown(2)
     }
 
     doc.y = Math.max(doc.y, filaTop + circleSize + 10)
